@@ -1,0 +1,189 @@
+openapi: 3.0.0
+info:
+  title: Restaurant API
+  description: Simple API for keeping track of orders in a restaurant.
+  version: 0.1.9
+tags:
+  - name: orders
+    description: Orders currently being processed
+  - name: menu-items
+    description: All possible items which can be ordered
+paths:
+  /orders/{table-id}:
+    get:
+      tags:
+        - orders
+      summary: Get all remaining orders for a table
+      parameters:
+        - name: table-id
+          in: path
+          description: The table ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    menu-item-id:
+                      type: string
+                    minutes-to-cook:
+                      type: integer
+    post:
+      tags:
+        - orders
+      summary: Adds orders to a table
+      description: This endpoint takes in its body a json object where the keys are menu item ids and the values are the number of orders of that menu item for the given table.
+      parameters:
+        - name: table-id
+          in: path
+          description: The table ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  menu-item-id:
+                    type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Format of data in body is incorrect"
+        '404':
+          description: Table does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Table with id 1 does not exist"
+        '422':
+          description: Invalid item-id or duplicate item-id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Menu item with id 1 does not exist"
+  /orders/{table-id}/{order-id}:
+    get:
+      tags:
+        - orders
+      summary: Get information for a specific order of a specific table
+      parameters:
+        - name: table-id
+          in: path
+          description: The table ID
+          required: true
+          schema:
+            type: string
+        - name: order-id
+          in: path
+          description: The Order ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  menu-item-id:
+                    type: string
+                  minutes-to-cook:
+                    type: integer
+        '404':
+          description: Table or Order does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Table with id 1 does not exist"
+    delete:
+      tags:
+        - orders
+      summary: Delete a given order from a table
+      parameters:
+        - name: table-id
+          in: path
+          description: The table ID
+          required: true
+          schema:
+            type: string
+        - name: order-id
+          in: path
+          description: The Order ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+        '404':
+          description: Table or Order does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Table with id 1 does not exist"
+  /menu-items:
+    get:
+      tags:
+        - menu-items
+      summary: Get all menu items in the database
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    minutes-to-cook:
+                      type: integer
