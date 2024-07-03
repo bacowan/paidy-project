@@ -51,10 +51,7 @@ fn list_orders(params: &[String]) {
     let order_result = match params {
         [table_id, order_id] => list_orders_single(table_id.to_string(), order_id.to_string()),
         [table_id] => list_orders_multiple(table_id.to_string()),
-        _ => {
-            let ret: Result<Vec<client::Order>, String> = Result::Err("Invalid parameters for command".to_string());
-            ret
-        }
+        _ => Result::Err("Invalid parameters for command".to_string())
     };
 
     match order_result {
@@ -86,14 +83,8 @@ fn list_orders_multiple(table_id: String) -> Result<Vec<client::Order>, String> 
 
 fn list_orders_single(table_id: String, order_id: String) -> Result<Vec<client::Order>, String> {
     match client::get_order(table_id, order_id) {
-        Result::Ok(order) => {
-            let ret: Result<Vec<client::Order>, String> = Result::Ok(vec![order]);
-            ret
-        }
-        Result::Err(err) => {
-            let ret: Result<Vec<client::Order>, String> = Result::Err(err.to_string());
-            ret
-        }
+        Result::Ok(order) => Result::Ok(vec![order]),
+        Result::Err(err) => Result::Err(err.to_string())
     }
 }
 
@@ -101,10 +92,7 @@ fn add_orders(params: &[String]) {
     let menu_items = match params {
         [table_id, item_ids @ ..] if item_ids.len() > 0 =>
             client::add_orders(table_id.to_string(), item_ids.to_vec()),
-        _ => {
-            let ret: Result<Vec<String>, String> = Result::Err("Invalid command parameters".to_string());
-            ret
-        }
+        _ => Result::Err("Invalid command parameters".to_string())
     };
     
     match menu_items {
@@ -117,10 +105,7 @@ fn delete_order(params: &[String]) {
     let menu_items = match params {
         [table_id, item_id] =>
             client::delete_order(table_id.to_string(), item_id.to_string()),
-        _ => {
-            let ret: Result<(), String> = Result::Err("Invalid command parameters".to_string());
-            ret
-        }
+        _ => Result::Err("Invalid command parameters".to_string())
     };
     
     match menu_items {
