@@ -27,16 +27,17 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    menu-item-id:
-                      type: string
-                    minutes-to-cook:
-                      type: integer
+                type: object
+                properties:
+                  menu-items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                        menu-item-name:
+                          type: number
     post:
       tags:
         - orders
@@ -53,14 +54,17 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  id:
-                    type: string
-                  menu-item-id:
-                    type: string
+              type: object
+              properties:
+                orders:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      order-id:
+                        type: number
+                      menu-item-id:
+                        type: number
       responses:
         '200':
           description: Success
@@ -122,10 +126,10 @@ paths:
                 properties:
                   id:
                     type: string
-                  menu-item-id:
-                    type: string
+                  menu-item-name:
+                    type: number
                   minutes-to-cook:
-                    type: integer
+                    type: number
         '404':
           description: Table or Order does not exist
           content:
@@ -177,13 +181,14 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-                    minutes-to-cook:
-                      type: integer
+                type: object
+                properties:
+                  menu-items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
