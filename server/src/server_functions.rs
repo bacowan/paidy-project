@@ -40,10 +40,6 @@ pub fn setup_database(connector: &impl DatabaseConnector) -> Result<(), rusqlite
     Result::Ok(())
 }
 
-pub fn table_orders(table_id: &str) -> &str {
-    return "HI"
-}
-
 pub fn get_menu_items(connector: &impl DatabaseConnector) -> Result<MenuItemResponse, rusqlite::Error> {
     let connection = connector.open()?;
     let query = "SELECT id, name FROM menu_items";

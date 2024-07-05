@@ -1,13 +1,17 @@
 use std::io::{self, Write};
+use tokio;
 
 use client::MenuItem;
 mod client;
 
-fn main() {
-    match client::get_menu_items() {
-        Result::Ok(items) => main_loop(items),
-        Result::Err(e) => println!("{e}")
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    match client::get_menu_items("http://127.0.0.1:8000".to_string()).await {
+        Result::Ok(items) => main_loop(items.menu_items),
+        Result::Err(e) => println!("Failed retrieving menu items: {e}")
     }
+
+    Result::Ok(())
 }
 
 fn main_loop(menu_items: Vec<MenuItem>) {
