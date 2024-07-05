@@ -36,13 +36,15 @@ paths:
                       properties:
                         id:
                           type: number
-                        menu-item-name:
+                        menu-item-id:
                           type: number
+                        menu-item-name:
+                          type: string
     post:
       tags:
         - orders
       summary: Adds orders to a table
-      description: This endpoint takes in its body a json object where the keys are menu item ids and the values are the number of orders of that menu item for the given table.
+      description: Note that an order-id is required. This can be any integer, as long as it doesn't have the same ID as any other order at that table.
       parameters:
         - name: table-id
           in: path
@@ -124,10 +126,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  id:
+                  order-id:
                     type: string
-                  menu-item-name:
+                  menu-item-id:
                     type: number
+                  menu-item-name:
+                    type: string
                   minutes-to-cook:
                     type: number
         '404':
