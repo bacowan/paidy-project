@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 reqwest = "0.12.5"
+server = { path = "../server" }
 
 [dependencies.tokio]
 version = "1"
@@ -13,3 +14,7 @@ features = ["full"]
 [dependencies.rocket]
 version = "0.5.1"
 features = ["json"]
+
+[dependencies.uuid]
+version = "1.9.1"
+features = ["v4"]

@@ -5,14 +5,16 @@ info:
   version: 0.1.9
 tags:
   - name: orders
-    description: Orders currently being processed
+    description: Information for singular orders
+  - name: tables
+    description: Orders in the context of the tables they are assigned to
   - name: menu-items
     description: All possible items which can be ordered
 paths:
-  /orders/{table-id}:
+  /tables/{table-id}/orders:
     get:
       tags:
-        - orders
+        - tables
       summary: Get all remaining orders for a table
       parameters:
         - name: table-id
@@ -29,20 +31,13 @@ paths:
               schema:
                 type: object
                 properties:
-                  menu-items:
+                  menu_items:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        id:
-                          type: number
-                        menu-item-id:
-                          type: number
-                        menu-item-name:
-                          type: string
+                      $ref: '#/components/schemas/Order'
     post:
       tags:
-        - orders
+        - tables
       summary: Adds orders to a table
       description: Note that an order-id is required. This can be any integer, as long as it doesn't have the same ID as any other order at that table.
       parameters:
@@ -63,9 +58,9 @@ paths:
                   items:
                     type: object
                     properties:
-                      order-id:
+                      idempotency_key:
                         type: number
-                      menu-item-id:
+                      menu_item_id:
                         type: number
       responses:
         '200':
@@ -100,40 +95,25 @@ paths:
                   error:
                     type: string
                     example: "Menu item with id 1 does not exist"
-  /orders/{table-id}/{order-id}:
+  /orders/{order-id}:
     get:
       tags:
         - orders
       summary: Get information for a specific order of a specific table
       parameters:
-        - name: table-id
-          in: path
-          description: The table ID
-          required: true
-          schema:
-            type: string
         - name: order-id
           in: path
           description: The Order ID
           required: true
           schema:
-            type: string
+            type: number
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  order-id:
-                    type: string
-                  menu-item-id:
-                    type: number
-                  menu-item-name:
-                    type: string
-                  minutes-to-cook:
-                    type: number
+                $ref: '#/components/schemas/Order'
         '404':
           description: Table or Order does not exist
           content:
@@ -149,12 +129,6 @@ paths:
         - orders
       summary: Delete a given order from a table
       parameters:
-        - name: table-id
-          in: path
-          description: The table ID
-          required: true
-          schema:
-            type: string
         - name: order-id
           in: path
           description: The Order ID
@@ -187,7 +161,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  menu-items:
+                  menu_items:
                     type: array
                     items:
                       type: object
@@ -196,3 +170,18 @@ paths:
                           type: string
                         name:
                           type: string
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: number
+        table_number:
+          type: number
+        menu_item_id:
+          type: number
+        menu_item_name:
+          type: string
+        minutes_to_cook:
+          type: number

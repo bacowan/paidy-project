@@ -1,20 +1,23 @@
 use std::io::{self, Write};
 use tokio;
+use server::rest_bodies;
+use server::rest_responses;
 
-use client::MenuItem;
-mod client;
+mod client_functions;
+
+const HOST: &str = "http://127.0.0.1:8000";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    match client::get_menu_items("http://127.0.0.1:8000".to_string()).await {
-        Result::Ok(items) => main_loop(items.menu_items),
+    match client_functions::get_menu_items(HOST.to_string()).await {
+        Result::Ok(items) => main_loop(items.menu_items).await,
         Result::Err(e) => println!("Failed retrieving menu items: {e}")
-    }
+    };
 
     Result::Ok(())
 }
 
-fn main_loop(menu_items: Vec<MenuItem>) {
+async fn main_loop(menu_items: Vec<rest_responses::MenuItem>) {
     loop {
         println!("Type one of the following commands to continue:");
         println!("  1: List orders");
@@ -26,7 +29,7 @@ fn main_loop(menu_items: Vec<MenuItem>) {
 
         match command.trim() {
             "1" => list_orders(),
-            "2" => add_orders(&menu_items),
+            "2" => add_orders(&menu_items).await,
             "3" => delete_order(),
             "exit" => return,
             _ => println!("Invalid command")
@@ -79,18 +82,18 @@ fn list_orders_for_table(table_number: String) {
     io::stdin().read_line(&mut String::new()).expect("Failed to read line");
 }
 
-fn list_orders_multiple(table_id: String) -> Result<Vec<client::Order>, String> {
-    return client::get_all_orders(table_id);
+fn list_orders_multiple(table_id: String) -> Result<Vec<rest_responses::Order>, String> {
+    return client_functions::get_all_orders(table_id);
 }
 
-fn list_orders_single(table_id: String, order_id: String) -> Result<Vec<client::Order>, String> {
-    match client::get_order(table_id, order_id) {
+fn list_orders_single(table_id: String, order_id: String) -> Result<Vec<rest_responses::Order>, String> {
+    match client_functions::get_order(table_id, order_id) {
         Result::Ok(order) => Result::Ok(vec![order]),
         Result::Err(err) => Result::Err(err.to_string())
     }
 }
 
-fn add_orders(menu_items: &Vec<MenuItem>) {
+async fn add_orders(menu_items: &Vec<rest_responses::MenuItem>) {
     println!("Input a table number, or type \"exit\" to go back.");
     loop {
         let table_number = get_user_input();
@@ -99,14 +102,14 @@ fn add_orders(menu_items: &Vec<MenuItem>) {
             "" => {},
             "exit" => return,
             n => {
-                add_orders_for_table(n.to_string(), &menu_items);
+                add_orders_for_table(n.to_string(), &menu_items).await;
                 return;
             }
         }
     }
 }
 
-fn add_orders_for_table(table_number: String, menu_items: &Vec<MenuItem>) {
+async fn add_orders_for_table(table_number: String, menu_items: &Vec<rest_responses::MenuItem>) {
     println!("Input a menu item ID to add an order item. Input no text to confirm. Input \"exit\" to cancel and go back.");
     println!("Menu item IDs are as follows:");
 
@@ -118,23 +121,31 @@ fn add_orders_for_table(table_number: String, menu_items: &Vec<MenuItem>) {
 
     println!("{menu_item_text}");
 
-    let mut staged_items: Vec<String> = Vec::new();
+    let mut staged_items: Vec<u32> = Vec::new();
     loop {
-        let menu_item_id = get_user_input();
-
-        match menu_item_id.trim() {
+        let menu_item_id = match get_user_input().trim() {
             "" => break,
-            id => staged_items.push(id.to_string())
-        }
+            id => match id.parse::<u32>() {
+                Ok(id_int) => id_int,
+                Err(_) => continue
+            }
+        };
+        staged_items.push(menu_item_id);
     }
 
     if staged_items.len() == 0 {
         println!("No items added.");
     }
     else {
-        let result = client::add_orders(table_number, staged_items);
+        let result = client_functions::add_orders(
+            HOST.to_string(),
+            table_number,
+            staged_items,
+            should_retry).await;
         let string_result = match result {
-            Result::Ok(ids) => format!("Orders successfully added. IDs for added orders are: {}", ids.join("; ")),
+            Result::Ok(ids) => format!(
+                "Orders successfully added. IDs for added orders are: {}",
+                ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join("; ")),
             Result::Err(e) => e
         };
     
@@ -143,6 +154,18 @@ fn add_orders_for_table(table_number: String, menu_items: &Vec<MenuItem>) {
 
     println!("Press enter to continue.");
     io::stdin().read_line(&mut String::new()).expect("Failed to read line");
+}
+
+fn should_retry() -> bool {
+    println!("The server timed out. Would you like to retry? If not, make sure you check if the item was added afterwords.");
+    println!("Y: retry; N: exit");
+    loop {
+        break match get_user_input().trim() {
+            "Y" => true,
+            "N" => false,
+            _ => continue
+        }
+    }
 }
 
 fn delete_order() {
@@ -172,7 +195,7 @@ fn delete_order_for_table(table_number: String) {
             "" => {},
             "exit" => return,
             id => {
-                let message = match client::delete_order(table_number, id.to_string()) {
+                let message = match client_functions::delete_order(table_number, id.to_string()) {
                     Result::Ok(()) => "Order deleted successfully".to_string(),
                     Result::Err(e) => e
                 };
