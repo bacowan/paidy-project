@@ -24,7 +24,7 @@ pub fn get_all_orders(host: String, table_number: u32) -> Result<Vec<rest_respon
 }
 
 pub fn get_order(host: String, table_number: u32, order_id: u32) -> Result<rest_responses::Order, String> {
-    let web_response = reqwest::blocking::get(format!("{host}/orders/{order_id}"))
+    let web_response = reqwest::blocking::get(format!("{host}/tables/{table_number}/orders/{order_id}"))
         .map_err(|e| e.to_string())?;
 
     match web_response.status() {

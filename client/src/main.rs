@@ -12,7 +12,7 @@ mod client_functions;
 
 const HOST: &str = "http://127.0.0.1:8000";
 const TABLE_COUNT: u32 = 5;
-const TABLET_COUNT: u32 = 1;
+const TABLET_COUNT: u32 = 10;
 const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +28,7 @@ fn client_tablet(client_number: u32) {
     let mut added_items: Vec<(u32,u32)> = Vec::new();
     add_random_order(client_number, &mut added_items);
     loop {
-        thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(1000..5000)));
+        thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(300..4000)));
         match rand::thread_rng().gen_range(1..5) {
             1 => add_random_order(client_number, &mut added_items),
             2 => delete_random_order(client_number, &mut added_items),
@@ -116,14 +116,19 @@ fn query_random_table(client_number: u32) {
     let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
     match client_functions::get_all_orders(HOST.to_string(), table_number) {
         Ok(orders) => {
-            println!("Client {} queried orders for table {}:\r\n{}",
+
+            println!("Client {} queried orders for table {}, which had {} orders, including {} for {} minutes.",
                 client_number,
                 table_number,
-                orders
-                    .iter()
-                    .map(|o| format!("{}: {}, {} minutes", o.id, o.menu_item_name, o.minutes_to_cook))
-                    .collect::<Vec<String>>()
-                    .join("\r\n"))
+                orders.len(),
+                match orders.first() {
+                    Some(order) => order.menu_item_name.to_string(),
+                    _ => "N/A".to_string()
+                },
+                match orders.first() {
+                    Some(order) => order.minutes_to_cook.to_string(),
+                    _ => "N/A".to_string()
+                })
         },
         Err(e) => println!("Client {} encountered an error trying to query orders for table {}: {}",
             client_number,
@@ -136,7 +141,7 @@ fn query_random_table_item(client_number: u32, added_items: &Vec<(u32,u32)>) {
     if let Some(item_to_query) = added_items.choose(&mut rand::thread_rng()) {
         match client_functions::get_order(HOST.to_string(), item_to_query.0, item_to_query.1) {
             Ok(order) => println!(
-                "Client {} queried order with ID {} for table {}:\r\n{}: {}, {} minutes",
+                "Client {} queried order with ID {} for table {}: order id {}, {}, {} minutes",
                 client_number,
                 item_to_query.1,
                 item_to_query.0,
