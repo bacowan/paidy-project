@@ -25,16 +25,16 @@ fn get_table_orders(table_number: u32) -> (Status, (ContentType, String)) {
 fn post_table_order(table_id: u32, orders_data: Json<rest_bodies::Orders>) -> (Status, (ContentType, String)) {
     match server_functions::add_orders(&get_connector(), table_id, orders_data.into_inner()) {
         Result::Ok(items) => match to_string(&items) {
-            Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, "{}".to_string())),
+            Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, item_string)),
             Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
         },
         Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
     }
 }
 
-#[get("/orders/<order_id>")]
-fn get_table_order(order_id: u32) -> (Status, (ContentType, String)) {
-    match server_functions::get_order(&get_connector(), order_id) {
+#[get("/tables/<table_number>/orders/<order_id>")]
+fn get_table_order(table_number: u32, order_id: u32) -> (Status, (ContentType, String)) {
+    match server_functions::get_order(&get_connector(), table_number, order_id) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, item_string)),
             Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
@@ -43,9 +43,9 @@ fn get_table_order(order_id: u32) -> (Status, (ContentType, String)) {
     }
 }
 
-#[delete("/orders/<order_id>")]
-fn delete_table_order(order_id: u32) -> (Status, (ContentType, String)) {
-    match server_functions::delete_order(&get_connector(), order_id) {
+#[delete("/tables/<table_number>/orders/<order_id>")]
+fn delete_table_order(table_number: u32, order_id: u32) -> (Status, (ContentType, String)) {
+    match server_functions::delete_order(&get_connector(), table_number, order_id) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(_) => (Status::Ok, (ContentType::JSON, "{}".to_string())),
             Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))

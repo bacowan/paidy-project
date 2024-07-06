@@ -52,14 +52,14 @@ fn list_orders() {
     }
 }
 
-fn list_orders_for_table(table_number: String) {
+async fn list_orders_for_table(table_number: String) {
     println!("Input an order id or no text to show all orders. Type \"exit\" to go back.");
     let order_id = get_user_input();
 
     let orders_result = match order_id.trim() {
         "exit" => return,
-        "" => list_orders_multiple(table_number),
-        n => list_orders_single(table_number, n.to_string())
+        "" => list_orders_multiple(table_number).await,
+        n => list_orders_single(n.to_string()).await
     };
 
     let order_text = match orders_result {
@@ -82,12 +82,12 @@ fn list_orders_for_table(table_number: String) {
     io::stdin().read_line(&mut String::new()).expect("Failed to read line");
 }
 
-fn list_orders_multiple(table_id: String) -> Result<Vec<rest_responses::Order>, String> {
-    return client_functions::get_all_orders(table_id);
+async fn list_orders_multiple(table_number: String) -> Result<Vec<rest_responses::Order>, String> {
+    return client_functions::get_all_orders(table_number).await;
 }
 
-fn list_orders_single(table_id: String, order_id: String) -> Result<Vec<rest_responses::Order>, String> {
-    match client_functions::get_order(table_id, order_id) {
+async fn list_orders_single(order_id: String) -> Result<Vec<rest_responses::Order>, String> {
+    match client_functions::get_order(order_id).await {
         Result::Ok(order) => Result::Ok(vec![order]),
         Result::Err(err) => Result::Err(err.to_string())
     }
@@ -125,6 +125,7 @@ async fn add_orders_for_table(table_number: String, menu_items: &Vec<rest_respon
     loop {
         let menu_item_id = match get_user_input().trim() {
             "" => break,
+            "exit" => return,
             id => match id.parse::<u32>() {
                 Ok(id_int) => id_int,
                 Err(_) => continue
@@ -143,10 +144,8 @@ async fn add_orders_for_table(table_number: String, menu_items: &Vec<rest_respon
             staged_items,
             should_retry).await;
         let string_result = match result {
-            Result::Ok(ids) => format!(
-                "Orders successfully added. IDs for added orders are: {}",
-                ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join("; ")),
-            Result::Err(e) => e
+            Result::Ok(()) => "Orders successfully added.".to_string(),
+            Result::Err(e) => e.to_string()
         };
     
         println!("{string_result}");

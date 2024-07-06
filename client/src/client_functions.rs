@@ -6,20 +6,37 @@ use uuid::Uuid;
 use server::{ rest_bodies, rest_responses };
 
 
-pub fn get_all_orders(table_id: String) -> Result<Vec<rest_responses::Order>, String> {
-    return Result::Ok(Vec::new());
+pub async fn get_all_orders(table_number: String) -> Result<Vec<rest_responses::Order>, String> {
+    let web_response = reqwest::get(format!("tables/{table_number}/orders"))
+        .await.map_err(|e| e.to_string())?;
+
+    match web_response.status() {
+        StatusCode::OK => {
+            let body = web_response.text()
+                .await.map_err(|e| e.to_string())?;
+            from_str::<Vec<rest_responses::Order>>(&body)
+                .map_err(|e| e.to_string())
+        },
+        status => Result::Err(status.as_str().to_string())
+    }
 }
 
-pub fn get_order(table_id: String, order_id: String) -> Result<rest_responses::Order, String> {
-    return Result::Ok(rest_responses::Order {
-        id: 0,
-        menu_item_id: 0,
-        minutes_to_cook: 1,
-        menu_item_name: "Pizza".to_string()
-    });
+pub async fn get_order(order_id: String) -> Result<rest_responses::Order, String> {
+    let web_response = reqwest::get(format!("orders/{order_id}"))
+        .await.map_err(|e| e.to_string())?;
+
+    match web_response.status() {
+        StatusCode::OK => {
+            let body = web_response.text()
+                .await.map_err(|e| e.to_string())?;
+            from_str::<rest_responses::Order>(&body)
+                .map_err(|e| e.to_string())
+        },
+        status => Result::Err(status.as_str().to_string())
+    }
 }
 
-pub async fn add_orders<F>(host: String, table_number: String, menu_item_ids: Vec<u32>, should_retry: F) -> Result<Vec<u32>, String>
+pub async fn add_orders<F>(host: String, table_number: String, menu_item_ids: Vec<u32>, should_retry: F) -> Result<(), String>
                         where F: Fn() -> bool {
     let orders = rest_bodies::Orders {
         orders: menu_item_ids.iter().map(|i| rest_bodies::Order {
@@ -31,7 +48,8 @@ pub async fn add_orders<F>(host: String, table_number: String, menu_item_ids: Ve
     let client = reqwest::Client::new();
 
     let web_response = loop {
-        let resp = client.post(format!("{host}/orders/{table_number}"))
+        let resp = client.post(format!("{host}/tables/{table_number}/orders"))
+            .header("Content-Type", "application/json")
             .body(to_string(&orders).map_err(|e| e.to_string())?)
             .send()
             .await;
@@ -46,11 +64,10 @@ pub async fn add_orders<F>(host: String, table_number: String, menu_item_ids: Ve
 
     match web_response.status() {
         StatusCode::OK => {
-            let body = web_response.text()
+            web_response.text()
                 .await
                 .map_err(|e| e.to_string())?;
-            from_str::<Vec<u32>>(&body)
-                .map_err(|e| e.to_string())
+            Ok(())
         },
         status => Result::Err(status.to_string())
     }

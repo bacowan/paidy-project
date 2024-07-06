@@ -1,4 +1,4 @@
-use rusqlite::{ Connection, Result };
+use rusqlite::{ params_from_iter, Connection, Result };
 use rocket::serde::{ Serialize, Deserialize };
 use rand::Rng;
 use std::fmt::Display;
@@ -65,7 +65,7 @@ pub fn get_menu_items(connector: &impl DatabaseConnector) -> Result<rest_respons
     )
 }
 
-pub fn add_orders(connector: &impl DatabaseConnector, table_number: u32, orders: rest_bodies::Orders) -> Result<(), String> {
+pub fn add_orders(connector: &impl DatabaseConnector, table_number: u32, orders: rest_bodies::Orders) -> Result<rest_responses::Orders, String> {
     let mut connection = connector.open().str_err()?;
     let transaction = connection.transaction().str_err()?;
 
@@ -91,8 +91,34 @@ pub fn add_orders(connector: &impl DatabaseConnector, table_number: u32, orders:
     };
 
     transaction.commit().str_err()?;
-    
-    Result::Ok(())
+
+    let query = format!("SELECT o.id, o.minutes_to_cook, m.id, m.name
+        FROM orders AS o
+        INNER JOIN menu_items AS m ON m.id = o.menu_item_id
+        WHERE o.idempotency_key IN ({})",
+        (1..orders.orders.len() + 1).map(|x| format!("?{x}")).collect::<Vec<_>>().join(","));
+
+    let mut stmt = connection.prepare(&query).str_err()?;
+    let query_result = stmt.query_map(
+        params_from_iter(orders.orders.iter().map(|o| o.idempotency_key.to_string())),
+        |row| Result::Ok(rest_responses::Order {
+            id: row.get(0)?,
+            minutes_to_cook: row.get(1)?,
+            menu_item_id: row.get(2)?,
+            menu_item_name: row.get(3)?
+        })).str_err()?;
+
+
+    let mut items = Vec::new();
+    for item in query_result {
+        items.push(item.str_err()?);
+    }
+
+    Result::Ok(
+        rest_responses::Orders {
+            orders: items
+        }
+    )
 }
 
 pub fn get_orders(connector: &impl DatabaseConnector, table_number: u32) -> Result<rest_responses::Orders, rusqlite::Error> {
@@ -123,15 +149,18 @@ pub fn get_orders(connector: &impl DatabaseConnector, table_number: u32) -> Resu
     )
 }
 
-pub fn get_order(connector: &impl DatabaseConnector, order_id: u32) -> Result<rest_responses::Order, rusqlite::Error> {
+pub fn get_order(connector: &impl DatabaseConnector, table_number: u32, order_id: u32) -> Result<rest_responses::Order, rusqlite::Error> {
     let connection = connector.open()?;
     let mut stmt = connection.prepare(
         "SELECT o.id, o.minutes_to_cook, m.id, m.name
         FROM orders AS o
         INNER JOIN menu_items AS m ON m.id = o.menu_item_id
-        WHERE o.id = :order_id")?;
+        WHERE o.id = :order_id
+        AND o.table_number = :table_number")?;
     let query_result = stmt.query_row(
-        &[(":order_id", &order_id.to_string())],
+        &[
+            (":order_id", &order_id.to_string()),
+            (":table_number", &table_number.to_string())],
         |row| Result::Ok(rest_responses::Order {
             id: row.get(0)?,
             minutes_to_cook: row.get(1)?,
@@ -142,12 +171,15 @@ pub fn get_order(connector: &impl DatabaseConnector, order_id: u32) -> Result<re
     Result::Ok(query_result)
 }
 
-pub fn delete_order(connector: &impl DatabaseConnector, order_id: u32) -> Result<(), rusqlite::Error> {
+pub fn delete_order(connector: &impl DatabaseConnector, table_number: u32, order_id: u32) -> Result<(), rusqlite::Error> {
     let connection = connector.open()?;
     connection.execute(
         "DELETE FROM orders
-            WHERE id = :order_id",
-        &[(":order_id", &order_id.to_string())])?;
+            WHERE id = :order_id
+            AND table_number = :table_number",
+        &[
+            (":order_id", &order_id.to_string()),
+            (":table_number", &table_number.to_string())])?;
     Result::Ok(())
 }
 

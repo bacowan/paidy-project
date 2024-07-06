@@ -11,13 +11,13 @@ tags:
   - name: menu-items
     description: All possible items which can be ordered
 paths:
-  /tables/{table-id}/orders:
+  /tables/{table-number}/orders:
     get:
       tags:
         - tables
       summary: Get all remaining orders for a table
       parameters:
-        - name: table-id
+        - name: table-number
           in: path
           description: The table ID
           required: true
@@ -41,7 +41,7 @@ paths:
       summary: Adds orders to a table
       description: Note that an order-id is required. This can be any integer, as long as it doesn't have the same ID as any other order at that table.
       parameters:
-        - name: table-id
+        - name: table-number
           in: path
           description: The table ID
           required: true
@@ -65,6 +65,15 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added_orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
         '400':
           description: Malformed request
           content:
