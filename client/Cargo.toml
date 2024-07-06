@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-reqwest = "0.12.5"
 rand = "0.8"
 server = { path = "../server" }
 tokio = { version = "1", features = ["full"] }
+
+[dependencies.reqwest]
+version = "0.12.5"
+features = ["blocking"]
 
 [dependencies.futures]
 version = "0.3"

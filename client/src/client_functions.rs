@@ -7,14 +7,14 @@ use uuid::Uuid;
 use server::{ rest_bodies, rest_responses };
 
 
-pub async fn get_all_orders(host: String, table_number: u32) -> Result<Vec<rest_responses::Order>, String> {
-    let web_response = reqwest::get(format!("{host}/tables/{table_number}/orders"))
-        .await.map_err(|e| e.to_string())?;
+pub fn get_all_orders(host: String, table_number: u32) -> Result<Vec<rest_responses::Order>, String> {
+    let web_response = reqwest::blocking::get(format!("{host}/tables/{table_number}/orders"))
+        .map_err(|e| e.to_string())?;
 
     match web_response.status() {
         StatusCode::OK => {
             let body = web_response.text()
-                .await.map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?;
             Ok(from_str::<rest_responses::Orders>(&body)
                 .map_err(|e| e.to_string())?
                 .orders)
@@ -23,14 +23,14 @@ pub async fn get_all_orders(host: String, table_number: u32) -> Result<Vec<rest_
     }
 }
 
-pub async fn get_order(host: String, table_number: u32, order_id: u32) -> Result<rest_responses::Order, String> {
-    let web_response = reqwest::get(format!("{host}/orders/{order_id}"))
-        .await.map_err(|e| e.to_string())?;
+pub fn get_order(host: String, table_number: u32, order_id: u32) -> Result<rest_responses::Order, String> {
+    let web_response = reqwest::blocking::get(format!("{host}/orders/{order_id}"))
+        .map_err(|e| e.to_string())?;
 
     match web_response.status() {
         StatusCode::OK => {
             let body = web_response.text()
-                .await.map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?;
             from_str::<rest_responses::Order>(&body)
                 .map_err(|e| e.to_string())
         },
@@ -38,7 +38,7 @@ pub async fn get_order(host: String, table_number: u32, order_id: u32) -> Result
     }
 }
 
-pub async fn add_orders<F>(host: String, table_number: u32, menu_item_ids: Vec<u32>, should_retry: F) -> Result<Vec<rest_responses::Order>, String>
+pub fn add_orders<F>(host: String, table_number: u32, menu_item_ids: Vec<u32>, should_retry: F) -> Result<Vec<rest_responses::Order>, String>
                         where F: Fn() -> bool {
     let orders = rest_bodies::Orders {
         orders: menu_item_ids.iter().map(|i| rest_bodies::Order {
@@ -47,14 +47,13 @@ pub async fn add_orders<F>(host: String, table_number: u32, menu_item_ids: Vec<u
         }).collect()
     };
 
-    let client = reqwest::Client::new();
+    let client = reqwest::blocking::Client::new();
 
     let web_response = loop {
         let resp = client.post(format!("{host}/tables/{table_number}/orders"))
             .header("Content-Type", "application/json")
             .body(to_string(&orders).map_err(|e| e.to_string())?)
-            .send()
-            .await;
+            .send();
         let retry = resp
             .as_ref()
             .err()
@@ -67,7 +66,7 @@ pub async fn add_orders<F>(host: String, table_number: u32, menu_item_ids: Vec<u
     match web_response.status() {
         StatusCode::OK => {
             let body = web_response.text()
-                .await.map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?;
             Ok(from_str::<rest_responses::Orders>(&body)
                 .map_err(|e| e.to_string())?
                 .orders)
@@ -80,14 +79,14 @@ pub fn delete_order(table_number: u32, order_id: u32) -> Result<(), String> {
     return Result::Ok(());
 }
 
-pub async fn get_menu_items(host: String) -> Result<rest_responses::MenuItems, String> {
-    let web_response = reqwest::get(format!("{host}/menu-items"))
-        .await.map_err(|e| e.to_string())?;
+pub fn get_menu_items(host: String) -> Result<rest_responses::MenuItems, String> {
+    let web_response = reqwest::blocking::get(format!("{host}/menu-items"))
+        .map_err(|e| e.to_string())?;
 
     match web_response.status() {
         StatusCode::OK => {
             let body = web_response.text()
-                .await.map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?;
             from_str::<rest_responses::MenuItems>(&body)
                 .map_err(|e| e.to_string())
         },
