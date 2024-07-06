@@ -5,11 +5,12 @@ edition = "2021"
 
 [dependencies]
 reqwest = "0.12.5"
+rand = "0.8"
 server = { path = "../server" }
 
-[dependencies.tokio]
-version = "1"
-features = ["full"]
+[dependencies.futures]
+version = "0.3"
+features = ["compat"]
 
 [dependencies.rocket]
 version = "0.5.1"
