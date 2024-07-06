@@ -7,6 +7,7 @@ use std::thread;
 use std::time::Duration;
 use rand::Rng;
 use rand::seq::SliceRandom;
+use tokio;
 
 mod client_functions;
 
@@ -15,9 +16,10 @@ const TABLE_COUNT: u32 = 5;
 const TABLET_COUNT: u32 = 1;
 const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 1..TABLET_COUNT + 1 {
-        thread::spawn( move || block_on(client_tablet(i)));
+        tokio::task::spawn( async move { client_tablet(i).await; });
     }
 
     thread::sleep(Duration::from_millis(RUN_TIME_MILLIS));
@@ -27,13 +29,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn client_tablet(client_number: u32) {
     let mut added_items: Vec<(u32,u32)> = Vec::new();
     loop {
+        add_random_order(client_number, &mut added_items).await;
         thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(1000..5000)));
-        match rand::thread_rng().gen_range(1..5) {
-            1 => add_random_order(client_number, &mut added_items).await,
-            2 => delete_random_order(client_number, &mut added_items).await,
-            3 => query_random_table(client_number).await,
-            _ => query_random_table_item(client_number, &added_items).await
-        }
+        /*match rand::thread_rng().gen_range(1..5) {
+            1 => add_random_order(client_number, &mut added_items),
+            2 => delete_random_order(client_number, &mut added_items),
+            3 => query_random_table(client_number),
+            _ => query_random_table_item(client_number, &added_items)
+        };*/
     }
 }
 
@@ -79,12 +82,9 @@ async fn add_to_table(table_number: u32, menu_item_names: Vec<String>) -> Result
 
 async fn delete_random_order(client_number: u32, added_items: &mut Vec<(u32,u32)>) {
     let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
-    let result = match client_functions::get_all_orders(table_number).await {
+    let result = match client_functions::get_all_orders(HOST.to_string(), table_number).await {
         Ok(orders) => delete_random_order_from_table(table_number, orders).await,
-        Err(e) => Err(format!("Client {} encountered an error trying to delete order from table {}: {}",
-            client_number,
-            table_number,
-            e.to_string()))
+        Err(e) => Err(e)
     };
 
     match result {
@@ -116,7 +116,7 @@ async fn delete_random_order_from_table(table_number: u32, orders: Vec<rest_resp
 
 async fn query_random_table(client_number: u32) {
     let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
-    match client_functions::get_all_orders(table_number).await {
+    match client_functions::get_all_orders(HOST.to_string(), table_number).await {
         Ok(orders) => {
             println!("Client {} queried orders for table {}:\r\n{}",
                 client_number,
@@ -127,7 +127,7 @@ async fn query_random_table(client_number: u32) {
                     .collect::<Vec<String>>()
                     .join("\r\n"))
         },
-        Err(e) => print!("Client {} encountered an error trying to query orders for table {}: {}",
+        Err(e) => println!("Client {} encountered an error trying to query orders for table {}: {}",
             client_number,
             table_number,
             e.to_string())
@@ -136,7 +136,7 @@ async fn query_random_table(client_number: u32) {
 
 async fn query_random_table_item(client_number: u32, added_items: &Vec<(u32,u32)>) {
     if let Some(item_to_query) = added_items.choose(&mut rand::thread_rng()) {
-        match client_functions::get_order(item_to_query.0, item_to_query.1).await {
+        match client_functions::get_order(HOST.to_string(), item_to_query.0, item_to_query.1).await {
             Ok(order) => println!(
                 "Client {} queried order with ID {} for table {}:\r\n{}: {}, {} minutes",
                 client_number,
@@ -145,12 +145,12 @@ async fn query_random_table_item(client_number: u32, added_items: &Vec<(u32,u32)
                 order.id,
                 order.menu_item_name,
                 order.minutes_to_cook),
-            Err(e) => print!("Client {} encountered an error trying to query a random table order: {}",
+            Err(e) => println!("Client {} encountered an error trying to query a random table order: {}",
                 client_number,
                 e.to_string())
         }
     }
     else {
-        print!("Client {} tried to query a random order but had none to query.", client_number);
+        println!("Client {} tried to query a random order but had none to query.", client_number);
     }
 }

@@ -1,28 +1,30 @@
 use reqwest::StatusCode;
 use rocket::serde::{ Deserialize };
 use rocket::serde::json::{ Json, to_string, from_str };
+use server::rest_bodies::Orders;
 use uuid::Uuid;
 
 use server::{ rest_bodies, rest_responses };
 
 
-pub async fn get_all_orders(table_number: u32) -> Result<Vec<rest_responses::Order>, String> {
-    let web_response = reqwest::get(format!("tables/{table_number}/orders"))
+pub async fn get_all_orders(host: String, table_number: u32) -> Result<Vec<rest_responses::Order>, String> {
+    let web_response = reqwest::get(format!("{host}/tables/{table_number}/orders"))
         .await.map_err(|e| e.to_string())?;
 
     match web_response.status() {
         StatusCode::OK => {
             let body = web_response.text()
                 .await.map_err(|e| e.to_string())?;
-            from_str::<Vec<rest_responses::Order>>(&body)
-                .map_err(|e| e.to_string())
+            Ok(from_str::<rest_responses::Orders>(&body)
+                .map_err(|e| e.to_string())?
+                .orders)
         },
         status => Result::Err(status.as_str().to_string())
     }
 }
 
-pub async fn get_order(table_number: u32, order_id: u32) -> Result<rest_responses::Order, String> {
-    let web_response = reqwest::get(format!("orders/{order_id}"))
+pub async fn get_order(host: String, table_number: u32, order_id: u32) -> Result<rest_responses::Order, String> {
+    let web_response = reqwest::get(format!("{host}/orders/{order_id}"))
         .await.map_err(|e| e.to_string())?;
 
     match web_response.status() {
@@ -66,8 +68,9 @@ pub async fn add_orders<F>(host: String, table_number: u32, menu_item_ids: Vec<u
         StatusCode::OK => {
             let body = web_response.text()
                 .await.map_err(|e| e.to_string())?;
-            from_str::<Vec<rest_responses::Order>>(&body)
-                .map_err(|e| e.to_string())
+            Ok(from_str::<rest_responses::Orders>(&body)
+                .map_err(|e| e.to_string())?
+                .orders)
         },
         status => Result::Err(status.to_string())
     }
