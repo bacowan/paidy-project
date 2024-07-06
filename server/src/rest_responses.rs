@@ -1,5 +1,6 @@
 use rocket::serde::{ Deserialize, Serialize };
 
+#[derive(Debug)]
 #[derive(Deserialize)]
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -8,6 +9,7 @@ pub struct MenuItem {
     pub name: String
 }
 
+#[derive(Debug)]
 #[derive(Deserialize)]
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -15,6 +17,7 @@ pub struct MenuItems {
     pub menu_items: Vec<MenuItem>
 }
 
+#[derive(Debug)]
 #[derive(Deserialize)]
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -22,6 +25,7 @@ pub struct Orders {
     pub orders: Vec<Order>
 }
 
+#[derive(Debug)]
 #[derive(Deserialize)]
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]

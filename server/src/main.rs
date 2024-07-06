@@ -8,10 +8,9 @@ use server::rest_bodies;
 use server_errors::ServerError;
 use rocket::Request;
 
-mod server_functions;
-mod database_connection;
-mod server_errors;
-
+use server::server_errors;
+use server::server_functions;
+use server::database_connection;
 
 const DATABASE_PATH: &str = "database.db";
 
@@ -97,7 +96,7 @@ fn rocket() -> _ {
     match server_functions::setup_database(&get_connector()) {
         Ok(_) => {},
         Err(err) => panic!("Failed to setup database: {}", match err {
-            ServerError::StringError(str) => str,
+            ServerError::SqlError(str) => str,
             other => format!("{:?}", other)
         }),
     };
