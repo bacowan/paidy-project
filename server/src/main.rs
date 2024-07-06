@@ -1,12 +1,17 @@
+#[macro_use] extern crate rocket;
+
 use rocket::{ get, post, delete, routes, launch };
-use rusqlite::{ Connection, Result };
+use rusqlite::{ Result };
 use rocket::http::{ Status, ContentType };
 use rocket::serde::json::{ Json, to_string };
-use rocket::serde::Deserialize;
 use server::rest_bodies;
+use server_errors::ServerError;
+use rocket::Request;
 
 mod server_functions;
 mod database_connection;
+mod server_errors;
+
 
 const DATABASE_PATH: &str = "database.db";
 
@@ -15,9 +20,9 @@ fn get_table_orders(table_number: u32) -> (Status, (ContentType, String)) {
     match server_functions::get_orders(&get_connector(), table_number) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, item_string)),
-            Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+            Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to get data.\" }".to_string()))
         },
-        Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: {}}}", e.to_string()).to_string()))
+        Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to get data.\" }".to_string()))
     }
 }
 
@@ -26,9 +31,13 @@ fn post_table_order(table_id: u32, orders_data: Json<rest_bodies::Orders>) -> (S
     match server_functions::add_orders(&get_connector(), table_id, orders_data.into_inner()) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, item_string)),
-            Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+            Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to add data.\" }".to_string()))
         },
-        Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+        Result::Err(e) => match e {
+            ServerError::Idempotency() => (Status::Conflict, (ContentType::JSON, "{ error: \"This order has already been added.\" }".to_string())),
+            ServerError::DataNotFound() => (Status::UnprocessableEntity, (ContentType::JSON, "{ error: \"The provided menu_item_id does not exist.\" }".to_string())),
+            _ => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to add data.\" }".to_string()))
+        }
     }
 }
 
@@ -37,9 +46,12 @@ fn get_table_order(table_number: u32, order_id: u32) -> (Status, (ContentType, S
     match server_functions::get_order(&get_connector(), table_number, order_id) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, item_string)),
-            Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+            Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to get data.\" }".to_string()))
         },
-        Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: {}}}", e.to_string()).to_string()))
+        Result::Err(e) => match e {
+            ServerError::DataNotFound() => (Status::NotFound, (ContentType::JSON, "{ error: \"Provided order does not exist for provided table.\" }".to_string())),
+            _ => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to get data.\" }".to_string()))
+        }
     }
 }
 
@@ -48,9 +60,9 @@ fn delete_table_order(table_number: u32, order_id: u32) -> (Status, (ContentType
     match server_functions::delete_order(&get_connector(), table_number, order_id) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(_) => (Status::Ok, (ContentType::JSON, "{}".to_string())),
-            Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+            Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to delete data.\" }".to_string()))
         },
-        Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: {}}}", e.to_string()).to_string()))
+        Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to delete data.\" }".to_string()))
     }
 }
 
@@ -59,17 +71,35 @@ fn get_menu_items() -> (Status, (ContentType, String)) {
     match server_functions::get_menu_items(&get_connector()) {
         Result::Ok(items) => match to_string(&items) {
             Result::Ok(item_string) => (Status::Ok, (ContentType::JSON, item_string)),
-            Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+            Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to get data.\" }".to_string()))
         },
-        Result::Err(e) => (Status::BadRequest, (ContentType::JSON, format!("{{ error: \"{e}\"}}").to_string()))
+        Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ error: \"Server error. Failed to get data.\" }".to_string()))
     }
+}
+
+#[catch(400)]
+fn internal_error() -> &'static str {
+    "{ error: \"Request format could not be understood\" }"
+}
+
+#[catch(404)]
+fn not_found(req: &Request) -> &'static str {
+    "{ error: \"Resource could not be found\" }"
+}
+
+#[catch(default)]
+fn default(status: Status, req: &Request) -> String {
+    format!("{{ error: \"{status}\" }}")
 }
 
 #[launch]
 fn rocket() -> _ {
     match server_functions::setup_database(&get_connector()) {
         Ok(_) => {},
-        Err(err) => panic!("Failed to setup database: {:?}", err),
+        Err(err) => panic!("Failed to setup database: {}", match err {
+            ServerError::StringError(str) => str,
+            other => format!("{:?}", other)
+        }),
     };
     rocket::build()
         .mount("/", routes![get_table_orders])
@@ -77,6 +107,7 @@ fn rocket() -> _ {
         .mount("/", routes![get_table_order])
         .mount("/", routes![delete_table_order])
         .mount("/", routes![get_menu_items])
+        .register("/", catchers![internal_error, not_found])
 }
 
 fn get_connector() -> database_connection::DefaultDatabaseConnector {
