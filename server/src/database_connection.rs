@@ -1,6 +1,6 @@
 use rusqlite::{ Connection, Result };
 
-pub trait DatabaseConnector {
+pub trait DatabaseConnector: Send + Sync {
     fn open(&self) -> Result<rusqlite::Connection, rusqlite::Error>;
 }
 

@@ -2,12 +2,13 @@ use rocket::http::hyper::server::Server;
 use rusqlite::{ params_from_iter, Error, ErrorCode, Result };
 use rand::Rng;
 use std::fmt::Display;
+use std::sync::Arc;
 
 use crate::server_errors::ServerError;
 use crate::database_connection::DatabaseConnector;
 use crate::{ rest_responses, rest_bodies };
 
-pub fn setup_database(connector: &impl DatabaseConnector) -> Result<(), ServerError> {
+pub fn setup_database(connector: &dyn DatabaseConnector) -> Result<(), ServerError> {
     let connection = connector.open().sql_err()?;
     
     let menu_items_exists_query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='menu_items';";
@@ -43,7 +44,7 @@ pub fn setup_database(connector: &impl DatabaseConnector) -> Result<(), ServerEr
     Result::Ok(())
 }
 
-pub fn get_menu_items(connector: &impl DatabaseConnector) -> Result<rest_responses::MenuItems, ServerError> {
+pub fn get_menu_items(connector: &dyn DatabaseConnector) -> Result<rest_responses::MenuItems, ServerError> {
     let connection = connector.open().sql_err()?;
     let query = "SELECT id, name FROM menu_items";
     let mut stmt = connection.prepare(query).sql_err()?;
@@ -66,7 +67,7 @@ pub fn get_menu_items(connector: &impl DatabaseConnector) -> Result<rest_respons
     )
 }
 
-pub fn add_orders(connector: &impl DatabaseConnector, table_number: u32, orders: rest_bodies::Orders) -> Result<rest_responses::Orders, ServerError> {
+pub fn add_orders(connector: &dyn DatabaseConnector, table_number: u32, orders: rest_bodies::Orders) -> Result<rest_responses::Orders, ServerError> {
     let mut connection = connector.open().sql_err()?;
     let transaction = connection.transaction().sql_err()?;
 
@@ -128,7 +129,7 @@ pub fn add_orders(connector: &impl DatabaseConnector, table_number: u32, orders:
     )
 }
 
-pub fn get_orders(connector: &impl DatabaseConnector, table_number: u32) -> Result<rest_responses::Orders, ServerError> {
+pub fn get_orders(connector: &dyn DatabaseConnector, table_number: u32) -> Result<rest_responses::Orders, ServerError> {
     let connection = connector.open().sql_err()?;
     let mut stmt = connection.prepare(
         "SELECT o.id, o.minutes_to_cook, m.id, m.name
@@ -156,7 +157,7 @@ pub fn get_orders(connector: &impl DatabaseConnector, table_number: u32) -> Resu
     )
 }
 
-pub fn get_order(connector: &impl DatabaseConnector, table_number: u32, order_id: u32) -> Result<rest_responses::Order, ServerError> {
+pub fn get_order(connector: &dyn DatabaseConnector, table_number: u32, order_id: u32) -> Result<rest_responses::Order, ServerError> {
     let connection = connector.open().sql_err()?;
     let mut stmt = connection.prepare(
         "SELECT o.id, o.minutes_to_cook, m.id, m.name
@@ -182,7 +183,7 @@ pub fn get_order(connector: &impl DatabaseConnector, table_number: u32, order_id
     Result::Ok(query_result)
 }
 
-pub fn delete_order(connector: &impl DatabaseConnector, table_number: u32, order_id: u32) -> Result<(), ServerError> {
+pub fn delete_order(connector: &dyn DatabaseConnector, table_number: u32, order_id: u32) -> Result<(), ServerError> {
     let connection = connector.open().sql_err()?;
     connection.execute(
         "DELETE FROM orders

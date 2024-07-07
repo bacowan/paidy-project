@@ -103,7 +103,7 @@ paths:
                     type: string
                     example: "This order has already been added"
         '422':
-          description: Invalid item-id or duplicate item-id
+          description: The provided menu_item_id does not exist
           content:
             application/json:
               schema:

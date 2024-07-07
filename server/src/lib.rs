@@ -3,3 +3,4 @@ pub mod rest_responses;
 pub mod server_functions;
 pub mod database_connection;
 pub mod server_errors;
+pub mod endpoints;
