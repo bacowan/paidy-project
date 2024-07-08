@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use server::database_connection::DatabaseConnector;
+use server::database_connector::DatabaseConnector;
 use rusqlite::{Connection, OpenFlags};
 use tempfile::NamedTempFile;
 

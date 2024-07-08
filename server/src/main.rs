@@ -13,7 +13,7 @@ use rocket::State;
 
 use server::server_errors;
 use server::server_functions;
-use server::database_connection::{ DatabaseConnector, DefaultDatabaseConnector };
+use server::database_connector::{ DatabaseConnector, DefaultDatabaseConnector };
 use server::endpoints::*;
 
 const DATABASE_PATH: &str = "database.db";

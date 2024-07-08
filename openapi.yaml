@@ -29,7 +29,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  menu_items:
+                  orders:
                     type: array
                     items:
                       $ref: '#/components/schemas/Order'
@@ -78,7 +78,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  added_orders:
+                  orders:
                     type: array
                     items:
                       $ref: '#/components/schemas/Order'

@@ -2,10 +2,9 @@ use rocket::http::hyper::server::Server;
 use rusqlite::{ params_from_iter, Error, ErrorCode, Result };
 use rand::Rng;
 use std::fmt::Display;
-use std::sync::Arc;
 
 use crate::server_errors::ServerError;
-use crate::database_connection::DatabaseConnector;
+use crate::database_connector::DatabaseConnector;
 use crate::{ rest_responses, rest_bodies };
 
 pub fn setup_database(connector: &dyn DatabaseConnector) -> Result<(), ServerError> {

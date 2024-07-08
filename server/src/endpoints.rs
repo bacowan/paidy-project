@@ -9,7 +9,7 @@ use rocket::State;
 use crate::rest_bodies;
 use crate::server_errors;
 use crate::server_functions;
-use crate::database_connection::DatabaseConnector;
+use crate::database_connector::DatabaseConnector;
 
 #[get("/tables/<table_number>/orders")]
 pub fn get_table_orders(table_number: u32, database_connector: &State<Box<dyn DatabaseConnector>>) -> (Status, (ContentType, String)) {

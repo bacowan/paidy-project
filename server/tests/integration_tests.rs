@@ -5,7 +5,7 @@ mod mock_database_connector;
 mod tests {
     use rocket::http::{ContentType, Header, Status};
     use rocket::serde::Deserialize;
-    use server::database_connection::{ self, DatabaseConnector };
+    use server::database_connector::{ self, DatabaseConnector };
     use server::server_errors::ServerError;
     use rocket::local::blocking::{Client, LocalResponse};
     use server::server_functions::setup_database;
