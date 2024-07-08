@@ -13,7 +13,7 @@ use client::client_functions;
 
 const HOST: &str = "http://127.0.0.1:8000";
 const TABLE_COUNT: u32 = 5;
-const TABLET_COUNT: u32 = 1;
+const TABLET_COUNT: u32 = 30;
 const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
 
 struct TableOrderPair {
@@ -34,14 +34,13 @@ fn client_tablet(client_number: u32) {
     let mut added_items: Vec<TableOrderPair> = Vec::new();
     add_random_order(client_number, &mut added_items);
     loop {
-        delete_random_order(client_number, &mut added_items);
         thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(300..4000)));
-        /*match rand::thread_rng().gen_range(1..5) {
+        match rand::thread_rng().gen_range(1..5) {
             1 => add_random_order(client_number, &mut added_items),
             2 => delete_random_order(client_number, &mut added_items),
             3 => query_random_table(client_number),
             _ => query_random_table_item(client_number, &added_items)
-        };*/
+        };
     }
 }
 
