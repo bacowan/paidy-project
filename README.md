@@ -10,7 +10,7 @@
 ### Rest API
 The design of the Rest API can be seen in openapi.yaml.
 ### Database structure
-The database is composed of 2 tables: menu_items and orders.
+The database is composed of 2 tables: menu_items and orders. There is no table for "tables"; table numbers are simply a property of orders.
 - menu_items contains all items that can be ordered, and defaults are added on creation.
   - There is an autoincrementing ID column and a name column
 - orders contains all orders that have been placed.
@@ -26,6 +26,6 @@ The database is composed of 2 tables: menu_items and orders.
   - The orders table in the database handles idempotency: if two of the same order are sent, there will be a conflict and the second item will not be added
 - Other files contain minor code, such as structs used elsewhere
 ### Client
-- main.rs: this is the entry point for the client. The 30 different threads are spawned for 1 minute. Each thead acts as a single "server" at the restaraunt, making random calls to the server. Each server keeps track of all orders that it has added, and that list is used when querying individual items from the server.
+- main.rs: this is the entry point for the client. The 30 different threads are spawned for 1 minute. Each thead acts as a single "waiter" at the restaraunt, making random calls to the server. Each waiter keeps track of all orders that it has added, and that list is used when querying individual items from the server. Note that a querried order may have been deleted by another waiter, in which case a 404 error will be returned and the process will continue.
 - client_functions.rs: this contains functions for sending data to the server. Each function takes a WebConnection object, which is used for dependency injection in unit testing. The default implementation sends a real request to the server, and the mock implementation allows for responses to be mocked and keeps track of some information about what requests are made.
   - Since the client is responsible for creating the idempotency key, a UUID is created for each order on POST requests. There is an option to retry the request on timeout; in this case, the same idempotency key is used.
