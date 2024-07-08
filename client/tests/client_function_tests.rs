@@ -191,7 +191,7 @@ mod tests {
     fn delete_orders_success() -> Result<(), String> {
         let connection = MockWebConnection::new(
             Method::DELETE,
-            StatusCode::OK,
+            StatusCode::NO_CONTENT,
             false,
             "{}".to_string()
         );

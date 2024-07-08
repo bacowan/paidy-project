@@ -75,10 +75,11 @@ pub fn add_orders<F>(web_connection: &dyn WebConnection, host: String, table_num
 }
 
 pub fn delete_order(web_connection: &dyn WebConnection, host: String, table_number: u32, order_id: u32) -> Result<(), String> {
+    println!("{host}/tables/{table_number}/orders/{order_id}");
     let web_response = web_connection.delete(format!("{host}/tables/{table_number}/orders/{order_id}"))
         .map_err(|e| e.text)?;
     match web_response.status {
-        StatusCode::OK => Ok(()),
+        StatusCode::NO_CONTENT => Ok(()),
         status => Result::Err(status.as_str().to_string())
     }
 }

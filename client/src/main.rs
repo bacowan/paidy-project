@@ -13,8 +13,13 @@ use client::client_functions;
 
 const HOST: &str = "http://127.0.0.1:8000";
 const TABLE_COUNT: u32 = 5;
-const TABLET_COUNT: u32 = 10;
+const TABLET_COUNT: u32 = 1;
 const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
+
+struct TableOrderPair {
+    table_id: u32,
+    order_id: u32
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 1..TABLET_COUNT + 1 {
@@ -26,20 +31,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn client_tablet(client_number: u32) {
-    let mut added_items: Vec<(u32,u32)> = Vec::new();
+    let mut added_items: Vec<TableOrderPair> = Vec::new();
     add_random_order(client_number, &mut added_items);
     loop {
+        delete_random_order(client_number, &mut added_items);
         thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(300..4000)));
-        match rand::thread_rng().gen_range(1..5) {
+        /*match rand::thread_rng().gen_range(1..5) {
             1 => add_random_order(client_number, &mut added_items),
             2 => delete_random_order(client_number, &mut added_items),
             3 => query_random_table(client_number),
             _ => query_random_table_item(client_number, &added_items)
-        };
+        };*/
     }
 }
 
-fn add_random_order(client_number: u32, added_items: &mut Vec<(u32,u32)>) {
+fn add_random_order(client_number: u32, added_items: &mut Vec<TableOrderPair>) {
     let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
     let menu_item_names = (0..rand::thread_rng().gen_range(1..3))
         .map(|_| match rand::thread_rng().gen_range(1..6) {
@@ -55,7 +61,10 @@ fn add_random_order(client_number: u32, added_items: &mut Vec<(u32,u32)>) {
 
     match result {
         Ok(orders) => {
-            added_items.extend(orders.iter().map(|o| (table_number, o.id)));
+            added_items.extend(orders.iter().map(|o| TableOrderPair {
+                table_id: table_number,
+                order_id: o.id
+            }));
             println!("Client {} added {} to table {}",
                 client_number,
                 orders.iter().map(|o| o.menu_item_name.to_string()).collect::<Vec<String>>().join(", "),
@@ -80,7 +89,7 @@ fn add_to_table(table_number: u32, menu_item_names: Vec<String>) -> Result<Vec<r
     client_functions::add_orders(&connection, HOST.to_string(), table_number, item_ids, || false)
 }
 
-fn delete_random_order(client_number: u32, added_items: &mut Vec<(u32,u32)>) {
+fn delete_random_order(client_number: u32, added_items: &mut Vec<TableOrderPair>) {
     let connection = DefaultWebConnection {};
     let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
     let result = match client_functions::get_all_orders(&connection, HOST.to_string(), table_number) {
@@ -90,7 +99,7 @@ fn delete_random_order(client_number: u32, added_items: &mut Vec<(u32,u32)>) {
 
     match result {
         Ok(order_id) => {
-            if let Some(index) = added_items.iter().position(|i| i.0 == table_number && i.1 == order_id) {
+            if let Some(index) = added_items.iter().position(|i| i.table_id == table_number && i.order_id == order_id) {
                 added_items.swap_remove(index);
             }
             println!("Client {} deleted order {} from table {}.",
@@ -142,15 +151,15 @@ fn query_random_table(client_number: u32) {
     };
 }
 
-fn query_random_table_item(client_number: u32, added_items: &Vec<(u32,u32)>) {
+fn query_random_table_item(client_number: u32, added_items: &Vec<TableOrderPair>) {
     let connection = DefaultWebConnection {};
     if let Some(item_to_query) = added_items.choose(&mut rand::thread_rng()) {
-        match client_functions::get_order(&connection, HOST.to_string(), item_to_query.0, item_to_query.1) {
+        match client_functions::get_order(&connection, HOST.to_string(), item_to_query.table_id, item_to_query.order_id) {
             Ok(order) => println!(
                 "Client {} queried order with ID {} for table {}: order id {}, {}, {} minutes",
                 client_number,
-                item_to_query.1,
-                item_to_query.0,
+                item_to_query.table_id,
+                item_to_query.order_id,
                 order.id,
                 order.menu_item_name,
                 order.minutes_to_cook),
