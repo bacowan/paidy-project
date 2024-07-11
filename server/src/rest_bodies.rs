@@ -5,6 +5,7 @@ use rocket::serde::{ Serialize, Deserialize };
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Orders {
+    pub idempotency_key: Option<String>,
     pub orders: Vec<Order>
 }
 
@@ -13,6 +14,5 @@ pub struct Orders {
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Order {
-    pub menu_item_id: u32,
-    pub idempotency_key: String
+    pub menu_item_id: u32
 }

@@ -6,12 +6,11 @@ use rocket::{ get, post, delete, routes, launch };
 use rusqlite::{ Result };
 use rocket::http::{ Status, ContentType };
 use rocket::serde::json::{ Json, to_string };
+use server::errors::server_error::ServerError;
 use server::rest_bodies;
-use server_errors::ServerError;
 use rocket::Request;
 use rocket::State;
 
-use server::server_errors;
 use server::server_functions;
 use server::database_connector::{ DatabaseConnector, DefaultDatabaseConnector };
 use server::endpoints::*;
@@ -25,10 +24,7 @@ fn rocket() -> _ {
     };
     match server_functions::setup_database(&database_connector) {
         Ok(_) => {},
-        Err(err) => panic!("Failed to setup database: {}", match err {
-            ServerError::SqlError(str) => str,
-            other => format!("{:?}", other)
-        }),
+        Err(err) => panic!("Failed to setup database: {}", err),
     };
     rocket::build()
         .manage(Box::new(database_connector) as Box<dyn DatabaseConnector>)

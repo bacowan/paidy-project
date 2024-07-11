@@ -6,7 +6,6 @@ mod tests {
     use rocket::http::{ContentType, Header, Status};
     use rocket::serde::Deserialize;
     use server::database_connector::{ self, DatabaseConnector };
-    use server::server_errors::ServerError;
     use rocket::local::blocking::{Client, LocalResponse};
     use server::server_functions::setup_database;
     use rocket::serde::json::{ Json, to_string, from_str };
@@ -82,6 +81,7 @@ mod tests {
         let menu_items = from_str::<rest_responses::MenuItems>(&response.into_string().unwrap())
             .map_err(|e| e.to_string())
             ?.menu_items;
+
         assert_eq!(menu_items.len(), 5, "Unexpected number of menu items were initialized");
         assert!(menu_items.iter().find(|m| m.name == "Hamburger").is_some());
         assert!(menu_items.iter().find(|m| m.name == "Salad").is_some());
@@ -96,14 +96,13 @@ mod tests {
         // setup
         let client = create_client()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key1".to_string()
+                    menu_item_id: 1
                 },
                 rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key2".to_string()
+                    menu_item_id: 2
                 }
             ]
         };
@@ -130,14 +129,13 @@ mod tests {
         // setup
         let client = create_client()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key1".to_string()
+                    menu_item_id: 1
                 },
                 rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key2".to_string()
+                    menu_item_id: 2
                 }
             ]
         };
@@ -172,14 +170,13 @@ mod tests {
         // setup
         let client = create_client()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key1".to_string()
+                    menu_item_id: 1
                 },
                 rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key2".to_string()
+                    menu_item_id: 2
                 }
             ]
         };
@@ -219,10 +216,10 @@ mod tests {
         // setup
         let client = create_client()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key1".to_string()
+                    menu_item_id: 1
                 }
             ]
         };
@@ -284,28 +281,16 @@ mod tests {
     #[test]
     fn orders_post_error_400() -> Result<(), String> {
         // setup
-        let client = create_client_without_setup()?;
-        let orders = rest_bodies::Orders {
-            orders: vec![
-                rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key1".to_string()
-                },
-                rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key2".to_string()
-                }
-            ]
-        };
+        let client = create_client()?;
 
         // execution
         let post_req = client.post("/tables/1/orders")
             .header(ContentType::JSON)
-            .body(to_string(&orders).map_err(|e| e.to_string())?);
+            .body("{ \"orders\": [{ \"idempotency_key\": 1 " );
         let post_response = post_req.dispatch();
         
         // assertion
-        assert_eq!(post_response.status(), Status::InternalServerError);
+        assert_eq!(post_response.status(), Status::BadRequest);
         assert_response_contains_error(post_response)?;
         Ok(())
     }
@@ -314,11 +299,19 @@ mod tests {
     fn orders_post_error_422() -> Result<(), String> {
         // setup
         let client = create_client()?;
+        let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
+            orders: vec![
+                rest_bodies::Order {
+                    menu_item_id: 999
+                }
+            ]
+        };
 
         // execution
         let post_req = client.post("/tables/1/orders")
             .header(ContentType::JSON)
-            .body("{ \"orders\": [{ \"idempotency_key\": 1 " );
+            .body(to_string(&orders).map_err(|e| e.to_string())?);
         let post_response = post_req.dispatch();
         
         // assertion
@@ -332,27 +325,28 @@ mod tests {
         // setup
         let client = create_client()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::Some("test".to_string()),
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key".to_string()
-                },
-                rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key".to_string()
+                    menu_item_id: 1
                 }
             ]
         };
 
         // execution
-        let post_req = client.post("/tables/1/orders")
+        let post_req1 = client.post("/tables/1/orders")
             .header(ContentType::JSON)
             .body(to_string(&orders).map_err(|e| e.to_string())?);
-        let post_response = post_req.dispatch();
+        let post_response1 = post_req1.dispatch();
+        let post_req2 = client.post("/tables/1/orders")
+            .header(ContentType::JSON)
+            .body(to_string(&orders).map_err(|e| e.to_string())?);
+        let post_response2 = post_req2.dispatch();
         
         // assertion
-        assert_eq!(post_response.status(), Status::Conflict);
-        assert_response_contains_error(post_response)?;
+        assert_eq!(post_response1.status(), Status::Ok);
+        assert_eq!(post_response2.status(), Status::Conflict);
+        assert_response_contains_error(post_response2)?;
         Ok(())
     }
     
@@ -362,14 +356,13 @@ mod tests {
         // setup
         let client = create_client_without_setup()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key".to_string()
+                    menu_item_id: 1
                 },
                 rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key".to_string()
+                    menu_item_id: 2
                 }
             ]
         };
@@ -408,14 +401,13 @@ mod tests {
         // setup
         let client = create_client()?;
         let orders = rest_bodies::Orders {
+            idempotency_key: Option::None,
             orders: vec![
                 rest_bodies::Order {
-                    menu_item_id: 1,
-                    idempotency_key: "key1".to_string()
+                    menu_item_id: 1
                 },
                 rest_bodies::Order {
-                    menu_item_id: 2,
-                    idempotency_key: "key2".to_string()
+                    menu_item_id: 2
                 }
             ]
         };

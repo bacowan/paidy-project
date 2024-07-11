@@ -2,12 +2,12 @@ use rocket::{ catch, delete, get, post };
 use rusqlite::Result;
 use rocket::http::{ Status, ContentType };
 use rocket::serde::json::{ Json, to_string };
-use server_errors::ServerError;
 use rocket::Request;
 use rocket::State;
 
 use crate::rest_bodies;
-use crate::server_errors;
+use crate::errors;
+use crate::errors::server_error::ServerError;
 use crate::server_functions;
 use crate::database_connector::DatabaseConnector;
 
@@ -30,8 +30,8 @@ pub fn post_table_order(table_id: u32, orders_data: Json<rest_bodies::Orders>, d
             Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ \"error\": \"Server error. Failed to add data.\" }".to_string()))
         },
         Result::Err(e) => match e {
-            ServerError::Idempotency() => (Status::Conflict, (ContentType::JSON, "{ \"error\": \"This order has already been added.\" }".to_string())),
-            ServerError::DataNotFound() => (Status::UnprocessableEntity, (ContentType::JSON, "{ error: \"The provided menu_item_id does not exist.\" }".to_string())),
+            ServerError::Idempotency => (Status::Conflict, (ContentType::JSON, "{ \"error\": \"This order has already been added.\" }".to_string())),
+            ServerError::DataNotFound => (Status::UnprocessableEntity, (ContentType::JSON, "{ \"error\": \"The provided menu_item_id does not exist.\" }".to_string())),
             _ => (Status::InternalServerError, (ContentType::JSON, "{ \"error\": \"Server error. Failed to add data.\" }".to_string()))
         }
     }
@@ -45,7 +45,7 @@ pub fn get_table_order(table_number: u32, order_id: u32, database_connector: &St
             Result::Err(_) => (Status::InternalServerError, (ContentType::JSON, "{ \"error\": \"Server error. Failed to get data.\" }".to_string()))
         },
         Result::Err(e) => match e {
-            ServerError::DataNotFound() => (Status::NotFound, (ContentType::JSON, "{ \"error\": \"Provided order does not exist for provided table.\" }".to_string())),
+            ServerError::DataNotFound => (Status::NotFound, (ContentType::JSON, "{ \"error\": \"Provided order does not exist for provided table.\" }".to_string())),
             _ => (Status::InternalServerError, (ContentType::JSON, "{ \"error\": \"Server error. Failed to get data.\" }".to_string()))
         }
     }

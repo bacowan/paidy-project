@@ -47,7 +47,7 @@ paths:
       tags:
         - tables
       summary: Adds orders to a table
-      description: Note that an order-id is required. This can be any integer, as long as it doesn't have the same ID as any other order at that table.
+      description: The idempotency key is optional. If two requests with the same idempotency key are received, the second one will not be committed. This can be used to ensure that, if the connection is dropped during a POST operation, the request can be safely sent without the risk of duplicating data.
       parameters:
         - name: table-number
           in: path
@@ -60,14 +60,17 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - orders
               properties:
+                idempotency_key:
+                  type: string
+                  format: uuid
                 orders:
                   type: array
                   items:
                     type: object
                     properties:
-                      idempotency_key:
-                        type: number
                       menu_item_id:
                         type: number
       responses:
@@ -101,7 +104,7 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: "This order has already been added"
+                    example: "This request has already been sent"
         '422':
           description: The provided menu_item_id does not exist
           content:
