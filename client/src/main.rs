@@ -1,164 +1,50 @@
-use std::borrow::Borrow;
-use std::future::Future;
-use futures::executor::block_on;
-use std::io::{self, Write};
-use server::rest_bodies;
-use server::rest_responses::{self, MenuItem};
-use std::thread;
-use std::time::Duration;
-use rand::Rng;
-use rand::seq::SliceRandom;
+use std::env;
+
 use client::web_connection::DefaultWebConnection;
 use client::client_functions;
 
-const HOST: &str = "http://127.0.0.1:8000";
-const TABLE_COUNT: u32 = 5;
-const TABLET_COUNT: u32 = 30;
-const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
+mod sim;
 
-struct TableOrderPair {
-    table_id: u32,
-    order_id: u32
-}
+const HOST: &str = "http://127.0.0.1:8000";
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    for i in 1..TABLET_COUNT + 1 {
-        thread::spawn(move || client_tablet(i));
-    }
-
-    thread::sleep(Duration::from_millis(RUN_TIME_MILLIS));
-    Result::Ok(())
-}
-
-fn client_tablet(client_number: u32) {
-    let mut added_items: Vec<TableOrderPair> = Vec::new();
-    add_random_order(client_number, &mut added_items);
-    loop {
-        thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(300..4000)));
-        match rand::thread_rng().gen_range(1..5) {
-            1 => add_random_order(client_number, &mut added_items),
-            2 => delete_random_order(client_number, &mut added_items),
-            3 => query_random_table(client_number),
-            _ => query_random_table_item(client_number, &added_items)
-        };
-    }
-}
-
-fn add_random_order(client_number: u32, added_items: &mut Vec<TableOrderPair>) {
-    let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
-    let menu_item_names = (0..rand::thread_rng().gen_range(1..3))
-        .map(|_| match rand::thread_rng().gen_range(1..6) {
-            1 => "Hamburger".to_string(),
-            2 => "Salad".to_string(),
-            3 => "Sushi".to_string(),
-            4 => "Ice Cream".to_string(),
-            _ => "Soda".to_string()
-        })
-        .collect::<Vec<String>>();
-    
-    let result = add_to_table(table_number, menu_item_names);
-
-    match result {
-        Ok(orders) => {
-            added_items.extend(orders.iter().map(|o| TableOrderPair {
-                table_id: table_number,
-                order_id: o.id
-            }));
-            println!("Client {} added {} to table {}",
-                client_number,
-                orders.iter().map(|o| o.menu_item_name.to_string()).collect::<Vec<String>>().join(", "),
-                table_number);
-        },
-        Err(e) => println!("Client {} encountered an error trying to add orders to table {}: {}",
-            client_number,
-            table_number,
-            e.to_string())
-    };
-}
-
-fn add_to_table(table_number: u32, menu_item_names: Vec<String>) -> Result<Vec<rest_responses::Order>, String> {
-    let connection = DefaultWebConnection {};
-    let menu_items = client_functions::get_menu_items(&connection, HOST.to_string())?;
-    let item_ids = menu_item_names
-        .iter()
-        .map(|n| menu_items.menu_items.iter().find(|m| m.name == n.to_string()))
-        .filter(|x| x.is_some())
-        .map(|x| x.unwrap().id)
-        .collect::<Vec<u32>>();
-    client_functions::add_orders(&connection, HOST.to_string(), table_number, item_ids, || false)
-}
-
-fn delete_random_order(client_number: u32, added_items: &mut Vec<TableOrderPair>) {
-    let connection = DefaultWebConnection {};
-    match added_items.choose(&mut rand::thread_rng()) {
-        Some(item_to_delete) => {
-            match client_functions::delete_order(&connection, HOST.to_string(), item_to_delete.table_id, item_to_delete.order_id) {
-                Ok(()) => {
-                    println!("Client {} deleted order {} from table {}.",
-                        client_number,
-                        item_to_delete.order_id,
-                        item_to_delete.table_id);
-                        
-                    if let Some(item_index) = added_items.iter().position(|i|
-                        i.table_id == item_to_delete.table_id && i.order_id == item_to_delete.order_id) {
-                            added_items.remove(item_index);
-                    }
-                },
-                Err(e) => println!("Client {} tried to delete order {} from table {}, but encountered an error: {}.",
-                    client_number,
-                    item_to_delete.order_id,
-                    item_to_delete.table_id,
-                    e)
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        0 => sim::run_sim(),
+        _ => {
+            match args.iter().map(|a| a.as_str()).collect::<Vec<&str>>().as_slice() {
+                ["show-menu-items"] => Ok(menu_items_command()),
+                ["add-orders", table_number, menu_item_ids @ ..] => Ok(add_orders(table_number, menu_item_ids.to_vec()))
             }
-        },
-        None => println!("Client {} tried to delete a random order but had none to delete.", client_number)
-    };
-}
-
-fn query_random_table(client_number: u32) {
-    let connection = DefaultWebConnection {};
-    let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
-    match client_functions::get_all_orders(&connection, HOST.to_string(), table_number) {
-        Ok(orders) => {
-
-            println!("Client {} queried orders for table {}, which had {} orders, including {} for {} minutes.",
-                client_number,
-                table_number,
-                orders.len(),
-                match orders.first() {
-                    Some(order) => order.menu_item_name.to_string(),
-                    _ => "N/A".to_string()
-                },
-                match orders.first() {
-                    Some(order) => order.minutes_to_cook.to_string(),
-                    _ => "N/A".to_string()
-                })
-        },
-        Err(e) => println!("Client {} encountered an error trying to query orders for table {}: {}",
-            client_number,
-            table_number,
-            e.to_string())
-    };
-}
-
-fn query_random_table_item(client_number: u32, added_items: &Vec<TableOrderPair>) {
-    let connection = DefaultWebConnection {};
-    if let Some(item_to_query) = added_items.choose(&mut rand::thread_rng()) {
-        match client_functions::get_order(&connection, HOST.to_string(), item_to_query.table_id, item_to_query.order_id) {
-            Ok(order) => println!(
-                "Client {} queried order with ID {} for table {}: order id {}, {}, {} minutes",
-                client_number,
-                item_to_query.table_id,
-                item_to_query.order_id,
-                order.id,
-                order.menu_item_name,
-                order.minutes_to_cook),
-            Err(e) => println!("Client {} encountered an error trying to query a random table order: {}",
-                client_number,
-                e.to_string())
         }
     }
-    else {
-        println!("Client {} tried to query a random order but had none to query.", client_number);
+}
+
+fn menu_items_command() {
+    let connection = DefaultWebConnection {};
+    let prnt = match client_functions::get_menu_items(&connection, HOST.to_string()) {
+        Ok(menu_items) => menu_items.menu_items
+            .iter()
+            .map(|i| format!("{}: {}", i.id, i.name))
+                .collect::<Vec<String>>()
+                .join("\r\n"),
+        Err(e) => format!("Encountered an Error: {}", e)
+    };
+    println!("{prnt}");
+}
+
+fn add_orders(table_number_string: String, menu_item_string_ids: Vec<String>) {
+    let connection = DefaultWebConnection {};
+
+    let prnt = match table_number_string.parse::<u32>() {
+        Ok(table_number) => {
+            match menu_item_string_ids.iter().map(|i| i.parse::<u32>()).collect() {
+                Ok(menu_item_ids) => client_functions::add_orders(&connection, HOST.to_string(), table_number, menu_item_ids, should_retry),
+                Err(x) => format!("Integer values are required for")
+            }
+                
+        }
     }
+    client_functions::add_orders(&connection, HOST.to_string(), table_number, menu_item_ids, should_retry);
 }
