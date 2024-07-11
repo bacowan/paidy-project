@@ -3,19 +3,32 @@
 ### Simulation
 1. cd to server and run `cargo run` in order to start up the server.
 2. In a separate terminal, cd to client and run `cargo run`. This will run a simulation of the client.
+### Command Line Interface
 ### Tests
 - To run the client tests, cd to client/tests and run `cargo test`
 - To run the server tests, cd to server/tests and run `cargo test`
 ## Design
+### Assumptions Made
+The assignment indicated that I should use my own judgement when any ambiguity is encountered in the instructions. The following are said assumptions that I made. Please note that, while this was intended to be production ready, with a real product I would ask the client for clarification whenever ambiguity arises rather than making assumptions like I did here.
+- The term "item" was used rather liberally in the instructions, and it was not always clear if it meant "menu item" or "order". I assumed that the intent was "order".
+- Little guidance was given on client design. I therefore made 2 different implementations that use the same fundamental code.
+  - One is a CLI that can be used to manually test the application;
+  - One is a "simulation", which spawns multiple threads and makes random requests to the server
 ### Rest API
-The design of the Rest API can be seen in openapi.yaml.
+The design of the Rest API can be seen in openapi.yaml, and can be viewed through https://editor.swagger.io/ by selecting File -> Import URL and pasting in "https://raw.githubusercontent.com/bacowan/paidy-project/main/openapi.yaml". A summary is as follows:
+- The /menu-items GET endpoint is used to get all menu items with their names and ids. While this was not a requirement of the project, it is important to allow the client to be able to see menu item names and their associated IDs so that they can be added to orders.
+- The /tables/{table-number}/orders GET endpoint lists all orders for a single table
+- The /tables/{table-number}/orders/{order-id} GET endpoint gets a single order for a single table
+- The /tables/{table-number}/orders POST enpoint allows for one or more orders to be added
+- The /tables/{table-number}/orders/{order-id} DELETE endpoint deletes the given order from the table
 ### Database structure
-The database is composed of 2 tables: menu_items and orders. There is no table for "tables"; table numbers are simply a property of orders.
+The database is composed of 3 tables: menu_items, orders, and idempotent_requests. There is no table for "tables"; table numbers are simply a property of orders.
 - menu_items contains all items that can be ordered, and defaults are added on creation.
   - There is an autoincrementing ID column and a name column
 - orders contains all orders that have been placed.
-  - Each order has a unique ID, the menu item that was ordered, a table number, minutes to cook, and a unique idempotency key.
-  - The idempotency key is added to ensure that duplicate orders are not placed. Since there is nothing unique about orders when they are sent (one table could order two hamburgers, for example), the client provides a unique idempotency key when creating an order; if the order is sent twice for some reason, the order will only by added once.
+  - Each order has a unique ID, the menu item that was ordered, a table number, minutes to cook.
+- idempotent_requests lists unique POST that have been made.
+  - The idempotency key is added to ensure that duplicate requests are not made. Since there is nothing unique about orders when they are sent (one table could order two hamburgers, for example), the client provides a unique idempotency key when creating orders; if the request is sent twice for some reason (for example, if the client disconnects and makes the request a second time to ensure that it went through), the order will only by added once.
 ## Code Structure
 ### Server
 - main.rs: this is the entry point for the server. The main function sets up the REST endpoints and starts the server
