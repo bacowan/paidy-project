@@ -90,38 +90,29 @@ fn add_to_table(table_number: u32, menu_item_names: Vec<String>) -> Result<Vec<r
 
 fn delete_random_order(client_number: u32, added_items: &mut Vec<TableOrderPair>) {
     let connection = DefaultWebConnection {};
-    let table_number = rand::thread_rng().gen_range(1..TABLE_COUNT + 1);
-    let result = match client_functions::get_all_orders(&connection, HOST.to_string(), table_number) {
-        Ok(orders) => delete_random_order_from_table(table_number, orders),
-        Err(e) => Err(e)
-    };
-
-    match result {
-        Ok(order_id) => {
-            if let Some(index) = added_items.iter().position(|i| i.table_id == table_number && i.order_id == order_id) {
-                added_items.swap_remove(index);
+    match added_items.choose(&mut rand::thread_rng()) {
+        Some(item_to_delete) => {
+            match client_functions::delete_order(&connection, HOST.to_string(), item_to_delete.table_id, item_to_delete.order_id) {
+                Ok(()) => {
+                    println!("Client {} deleted order {} from table {}.",
+                        client_number,
+                        item_to_delete.order_id,
+                        item_to_delete.table_id);
+                        
+                    if let Some(item_index) = added_items.iter().position(|i|
+                        i.table_id == item_to_delete.table_id && i.order_id == item_to_delete.order_id) {
+                            added_items.remove(item_index);
+                    }
+                },
+                Err(e) => println!("Client {} tried to delete order {} from table {}, but encountered an error: {}.",
+                    client_number,
+                    item_to_delete.order_id,
+                    item_to_delete.table_id,
+                    e)
             }
-            println!("Client {} deleted order {} from table {}.",
-                client_number,
-                order_id,
-                table_number);
         },
-        Err(e) => println!("Client {} tried to delete a random order from table {}, but encountered an error: {}.",
-            client_number,
-            table_number,
-            e)
+        None => println!("Client {} tried to delete a random order but had none to delete.", client_number)
     };
-}
-
-fn delete_random_order_from_table(table_number: u32, orders: Vec<rest_responses::Order>) -> Result<u32, String> {
-    let connection = DefaultWebConnection {};
-    match orders.choose(&mut rand::thread_rng()) {
-        Some(order) => {
-            client_functions::delete_order(&connection, HOST.to_string(), table_number, order.id)?;
-            Ok(order.id)
-        },
-        _ => Err("The table had no orders".to_string())
-    }
 }
 
 fn query_random_table(client_number: u32) {

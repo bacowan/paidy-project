@@ -42,9 +42,9 @@ pub fn get_order(web_connection: &dyn WebConnection, host: String, table_number:
 pub fn add_orders<F>(web_connection: &dyn WebConnection, host: String, table_number: u32, menu_item_ids: Vec<u32>, should_retry: F) -> Result<Vec<rest_responses::Order>, String>
                         where F: Fn() -> bool {
     let orders = rest_bodies::Orders {
+        idempotency_key: Option::Some(Uuid::new_v4().to_string()),
         orders: menu_item_ids.iter().map(|i| rest_bodies::Order {
             menu_item_id: *i,
-            idempotency_key: Uuid::new_v4().to_string()
         }).collect()
     };
 
