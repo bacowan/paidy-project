@@ -52,12 +52,13 @@ Host: http://127.0.0.1:8000
 The assignment indicated that I should use my own judgement when any ambiguity is encountered in the instructions. The following are said assumptions. Please note that, while this was intended to be production ready, with a real product I would ask the client for clarification whenever ambiguity arises rather than making assumptions like I did here.
 - The term "item" was used rather liberally in the instructions, and it was not always clear if it meant "menu item" or "order". I assumed that the intent was "order".
 - Little guidance was given on client design. While I thought it would be useful to make a CLI or similar in order to manually run the clients, the wording make it sound more like an automatically run "simulation". I split the code such that creating a CLI would not be difficult, but for the sake of scope creep I refrained from doing so. Manual testing of the REST API can be done simply enough with tools like postman or curl.
+- No way of updating was implemented. It could be useful to update orders, for example if the kitchen had access to the api and could update the amount of time left on an order if things were behind schedule. This would not be difficult to implement via a PUT endpoint, but was omitted to avoid scope creep.
 ### Rest API
 The design of the Rest API can be seen in openapi.yaml, and can be viewed through https://editor.swagger.io/ by selecting File -> Import URL and pasting in "https://raw.githubusercontent.com/bacowan/paidy-project/main/openapi.yaml". A summary is as follows:
-- The /menu-items GET endpoint is used to get all menu items with their names and ids. While this was not a requirement of the project, it is important to allow the client to be able to see menu item names and their associated IDs so that they can be added to orders.
+- The `/menu-items GET` endpoint is used to get all menu items with their names and ids. While this was not a requirement of the project, it is important to allow the client to be able to see menu item names and their associated IDs so that they can be added to orders.
 - The `/tables/{table-number}/orders GET` endpoint lists all orders for a single table
 - The `/tables/{table-number}/orders/{order-id} GET` endpoint gets a single order for a single table
-- The `/tables/{table-number}/orders POST` enpoint allows for one or more orders to be added
+- The `/tables/{table-number}/orders POST` enpoint allows for one or more orders to be added. This was implemented as a POST endpoint rather than a PUT endpoint as only creation requests are intended, not update requests.
 - The `/tables/{table-number}/orders/{order-id} DELETE` endpoint deletes the given order from the table
 ### Database structure
 The database is composed of 3 tables: menu_items, orders, and idempotent_requests. There is no table for "tables": table numbers are simply a property of orders.
