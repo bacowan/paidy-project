@@ -1,7 +1,6 @@
-#[cfg(test)]
-
 mod mock_web_connection;
 
+#[cfg(test)]
 mod tests {
     use client::{client_functions, web_connection::WebError};
     use reqwest::StatusCode;

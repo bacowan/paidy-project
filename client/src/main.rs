@@ -1,50 +1,29 @@
-use std::env;
-
+use std::borrow::Borrow;
+use std::future::Future;
+use futures::executor::block_on;
+use std::io::{self, Write};
+use server::rest_bodies;
+use server::rest_responses::{self, MenuItem};
+use std::thread;
+use std::time::Duration;
+use rand::Rng;
+use rand::seq::SliceRandom;
 use client::web_connection::DefaultWebConnection;
-use client::client_functions;
-
-mod sim;
+use client::client_function_interface::{ClientFunctionInterface, DefaultClientFunctionInterface};
+use client::sim;
 
 const HOST: &str = "http://127.0.0.1:8000";
-
+const TABLE_COUNT: u32 = 5;
+const TABLET_COUNT: u32 = 30;
+const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
+const MIN_DELAY_MILLIS: u64 = 300;
+const MAX_DELAY_MILLIS: u64 = 4000;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        0 => sim::run_sim(),
-        _ => {
-            match args.iter().map(|a| a.as_str()).collect::<Vec<&str>>().as_slice() {
-                ["show-menu-items"] => Ok(menu_items_command()),
-                ["add-orders", table_number, menu_item_ids @ ..] => Ok(add_orders(table_number, menu_item_ids.to_vec()))
-            }
-        }
+    for i in 1..TABLET_COUNT + 1 {
+        thread::spawn(move || sim::client_tablet(i));
     }
-}
 
-fn menu_items_command() {
-    let connection = DefaultWebConnection {};
-    let prnt = match client_functions::get_menu_items(&connection, HOST.to_string()) {
-        Ok(menu_items) => menu_items.menu_items
-            .iter()
-            .map(|i| format!("{}: {}", i.id, i.name))
-                .collect::<Vec<String>>()
-                .join("\r\n"),
-        Err(e) => format!("Encountered an Error: {}", e)
-    };
-    println!("{prnt}");
-}
-
-fn add_orders(table_number_string: String, menu_item_string_ids: Vec<String>) {
-    let connection = DefaultWebConnection {};
-
-    let prnt = match table_number_string.parse::<u32>() {
-        Ok(table_number) => {
-            match menu_item_string_ids.iter().map(|i| i.parse::<u32>()).collect() {
-                Ok(menu_item_ids) => client_functions::add_orders(&connection, HOST.to_string(), table_number, menu_item_ids, should_retry),
-                Err(x) => format!("Integer values are required for")
-            }
-                
-        }
-    }
-    client_functions::add_orders(&connection, HOST.to_string(), table_number, menu_item_ids, should_retry);
+    thread::sleep(Duration::from_millis(RUN_TIME_MILLIS));
+    Result::Ok(())
 }
