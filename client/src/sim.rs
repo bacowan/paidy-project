@@ -14,8 +14,6 @@ use crate::client_function_interface::{ClientFunctionInterface, DefaultClientFun
 
 const HOST: &str = "http://127.0.0.1:8000";
 const TABLE_COUNT: u32 = 5;
-const TABLET_COUNT: u32 = 30;
-const RUN_TIME_MILLIS: u64 = 60000; // 1 minute
 const MIN_DELAY_MILLIS: u64 = 300;
 const MAX_DELAY_MILLIS: u64 = 4000;
 

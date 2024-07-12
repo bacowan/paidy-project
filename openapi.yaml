@@ -47,7 +47,7 @@ paths:
       tags:
         - tables
       summary: Adds orders to a table
-      description: The idempotency key is optional. If two requests with the same idempotency key are received, the second one will not be committed. This can be used to ensure that, if the connection is dropped during a POST operation, the request can be safely sent without the risk of duplicating data.
+      description: Tables themselves need not be added, so calling this endpoint should work for any table-number value that can fit in an unsigned 32 bit integer.<br>The idempotency key is optional. If two requests with the same idempotency key are received, the second one will not be committed. This can be used to ensure that, if the connection is dropped during a POST operation, the request can be safely sent without the risk of duplicating data.<br>Note that the 'Content-Type application/json' header is required.
       parameters:
         - name: table-number
           in: path
