@@ -70,7 +70,7 @@ The database is composed of 3 tables: menu_items, orders, and idempotent_request
   - A potential new feature would be to have idempotentcy keys expire: a timestamp column could be added, and a cron job could periodically delete items which are older than a day, for example. This would need to be clearly documented for uses to know.
 ## Code Structure
 ### Server
-- main.rs: this is the entry point for the server. The main function sets up the REST endpoints and starts the server
+- main.rs: this is the entry point for the server. The main function initializes the database, sets up the REST endpoints, and starts the server.
 - endpoints.rs: this defines the behaviour of the individual endpoints. It is responsible for deserializing requests and serializing output, including outputting the correct error codes.
 - server_functions.rs: this contains all of the database interaction logic.
   - The database engine used is Sqlite. Each call opens its own connection which is automatically closed once it goes out of scope.
