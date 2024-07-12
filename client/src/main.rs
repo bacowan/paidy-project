@@ -1,15 +1,5 @@
-use std::borrow::Borrow;
-use std::future::Future;
-use futures::executor::block_on;
-use std::io::{self, Write};
-use server::rest_bodies;
-use server::rest_responses::{self, MenuItem};
 use std::thread;
 use std::time::Duration;
-use rand::Rng;
-use rand::seq::SliceRandom;
-use client::web_connection::DefaultWebConnection;
-use client::client_function_interface::{ClientFunctionInterface, DefaultClientFunctionInterface};
 use client::sim;
 
 const TABLET_COUNT: u32 = 30;

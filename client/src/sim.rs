@@ -1,11 +1,6 @@
-use std::borrow::Borrow;
-use std::future::Future;
-use futures::executor::block_on;
-use rand::rngs::{StdRng, ThreadRng};
-use std::io::{self, Write};
-use server::rest_bodies;
-use server::rest_responses::{self, MenuItem};
-use std::thread::{self, Thread};
+use rand::rngs::StdRng;
+use server::rest_responses;
+use std::thread;
 use std::time::Duration;
 use rand::{Rng, SeedableRng};
 use rand::seq::SliceRandom;
@@ -44,15 +39,15 @@ pub fn client_tablet(client_number: u32) {
             3 => query_random_table(&mut injection, client_number),
             _ => query_random_table_item(&mut injection, client_number, &added_items)
         };
-        println!("{}", to_print);
+        println!("{to_print}");
     }
 }
 
 pub fn add_random_order<T>(params: &mut SimInjectionParams<T>, client_number: u32, added_items: &mut Vec<TableOrderPair>) -> String
         where T: ClientFunctionInterface {
     let table_number = params.rng.gen_range(1..TABLE_COUNT + 1);
-    let menu_item_names = (0..params.rng.gen_range(1..3))
-        .map(|_| match params.rng.gen_range(1..6) {
+    let menu_item_names = (0..params.rng.gen_range(1..3)) // add 1-3 new items
+        .map(|_| match params.rng.gen_range(1..6) { // for each, pick one of the following 5 based on string
             1 => "Hamburger".to_string(),
             2 => "Salad".to_string(),
             3 => "Sushi".to_string(),

@@ -1,7 +1,5 @@
 use reqwest::StatusCode;
-use rocket::serde::{ Deserialize };
-use rocket::serde::json::{ Json, to_string, from_str };
-use server::rest_bodies::Orders;
+use rocket::serde::json::{ to_string, from_str };
 use uuid::Uuid;
 
 use server::{ rest_bodies, rest_responses };

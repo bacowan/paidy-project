@@ -1,6 +1,4 @@
-use reqwest::blocking::Response;
 use reqwest::{Error, StatusCode};
-use rocket::http::Status;
 
 pub struct WebResponse {
     pub status: StatusCode,

@@ -2,10 +2,10 @@ mod mock_web_connection;
 
 #[cfg(test)]
 mod tests {
-    use client::{client_functions, web_connection::WebError};
+    use client::client_functions;
     use reqwest::StatusCode;
 
-    use crate::mock_web_connection::{self, Method, MockWebConnection};
+    use crate::mock_web_connection::{Method, MockWebConnection};
 
     #[test]
     fn get_all_orders_success() -> Result<(), String> {
@@ -182,7 +182,7 @@ mod tests {
         });
         assert!(*connection.was_post_called.borrow());
         assert!(result.is_err());
-        assert_eq!(retry_count.get(), 2);
+        assert_eq!(retry_count.get(), 2); // should_retry is called twice, false returned the second time
         Ok(())
     }
 

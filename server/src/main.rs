@@ -1,15 +1,6 @@
 #[macro_use] extern crate rocket;
 
-use std::borrow::Borrow;
-
-use rocket::{ get, post, delete, routes, launch };
-use rusqlite::{ Result };
-use rocket::http::{ Status, ContentType };
-use rocket::serde::json::{ Json, to_string };
-use server::errors::server_error::ServerError;
-use server::rest_bodies;
-use rocket::Request;
-use rocket::State;
+use rocket::{ routes, launch };
 
 use server::server_functions;
 use server::database_connector::{ DatabaseConnector, DefaultDatabaseConnector };

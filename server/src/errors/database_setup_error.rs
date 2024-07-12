@@ -1,5 +1,4 @@
 use std::fmt;
-use std::fs;
 use std::io;
 use rusqlite;
 

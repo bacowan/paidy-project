@@ -3,17 +3,16 @@
 mod mock_database_connector;
 
 mod tests {
-    use rocket::http::{ContentType, Header, Status};
+    use rocket::http::{ContentType, Status};
     use rocket::serde::Deserialize;
-    use server::database_connector::{ self, DatabaseConnector };
+    use server::database_connector::DatabaseConnector;
     use rocket::local::blocking::{Client, LocalResponse};
     use server::server_functions::setup_database;
-    use rocket::serde::json::{ Json, to_string, from_str };
+    use rocket::serde::json::{ to_string, from_str };
     use server::{rest_bodies, rest_responses};
-    use rocket::{catchers, response, routes, serde};
-    use tempfile::NamedTempFile;
+    use rocket::{catchers, routes};
 
-    use crate::mock_database_connector::{self, MockDatabaseConnector};
+    use crate::mock_database_connector;
     use server::endpoints::*;
 
     #[derive(Deserialize)]
@@ -197,6 +196,8 @@ mod tests {
             .map_err(|e| e.to_string())?
             .orders;
 
+        assert_eq!(orders.len(), 2);
+
         let first_order = orders.iter().find(|o| o.menu_item_id == 1).unwrap();
         assert_eq!(first_order.menu_item_id, 1);
         assert!(!first_order.menu_item_name.is_empty());
@@ -286,12 +287,44 @@ mod tests {
         // execution
         let post_req = client.post("/tables/1/orders")
             .header(ContentType::JSON)
-            .body("{ \"orders\": [{ \"idempotency_key\": 1 " );
+            .body("{ \"orders\": [{ \"idempotency_key\": 1 " ); // poorly formatted body
         let post_response = post_req.dispatch();
         
         // assertion
         assert_eq!(post_response.status(), Status::BadRequest);
         assert_response_contains_error(post_response)?;
+        Ok(())
+    }
+
+    #[test]
+    fn orders_post_error_409() -> Result<(), String> {
+        // setup
+        let client = create_client()?;
+        let orders = rest_bodies::Orders {
+            idempotency_key: Option::Some("test".to_string()),
+            orders: vec![
+                rest_bodies::Order {
+                    menu_item_id: 1
+                }
+            ]
+        };
+
+        // execution
+        let post_req1 = client.post("/tables/1/orders")
+            .header(ContentType::JSON)
+            .body(to_string(&orders).map_err(|e| e.to_string())?);
+        let post_response1 = post_req1.dispatch();
+
+        // post the same request a second time
+        let post_req2 = client.post("/tables/1/orders")
+            .header(ContentType::JSON)
+            .body(to_string(&orders).map_err(|e| e.to_string())?);
+        let post_response2 = post_req2.dispatch();
+        
+        // assertion
+        assert_eq!(post_response1.status(), Status::Ok);
+        assert_eq!(post_response2.status(), Status::Conflict);
+        assert_response_contains_error(post_response2)?;
         Ok(())
     }
 
@@ -317,36 +350,6 @@ mod tests {
         // assertion
         assert_eq!(post_response.status(), Status::UnprocessableEntity);
         assert_response_contains_error(post_response)?;
-        Ok(())
-    }
-
-    #[test]
-    fn orders_post_error_409() -> Result<(), String> {
-        // setup
-        let client = create_client()?;
-        let orders = rest_bodies::Orders {
-            idempotency_key: Option::Some("test".to_string()),
-            orders: vec![
-                rest_bodies::Order {
-                    menu_item_id: 1
-                }
-            ]
-        };
-
-        // execution
-        let post_req1 = client.post("/tables/1/orders")
-            .header(ContentType::JSON)
-            .body(to_string(&orders).map_err(|e| e.to_string())?);
-        let post_response1 = post_req1.dispatch();
-        let post_req2 = client.post("/tables/1/orders")
-            .header(ContentType::JSON)
-            .body(to_string(&orders).map_err(|e| e.to_string())?);
-        let post_response2 = post_req2.dispatch();
-        
-        // assertion
-        assert_eq!(post_response1.status(), Status::Ok);
-        assert_eq!(post_response2.status(), Status::Conflict);
-        assert_response_contains_error(post_response2)?;
         Ok(())
     }
     
@@ -416,11 +419,16 @@ mod tests {
         let post_req = client.post("/tables/1/orders")
             .header(ContentType::JSON)
             .body(to_string(&orders).map_err(|e| e.to_string())?);
-        post_req.dispatch();
+        let post_response = post_req.dispatch();
+        let post_orders = from_str::<rest_responses::Orders>(&post_response.into_string().unwrap())
+            .map_err(|e| e.to_string())
+            ?.orders;
+        let order = post_orders.iter().find(|o| o.menu_item_id == 1).unwrap();
+        
 
         // get execution
-        let req = client.get("/tables/2/orders/1");
-        let response = req.dispatch();
+        let get_req = client.get(format!("/tables/2/orders/{}", order.id)); // different table from before
+        let response = get_req.dispatch();
         
         // assertion
         assert_eq!(response.status(), Status::NotFound);

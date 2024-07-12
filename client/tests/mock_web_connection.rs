@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
 use client::web_connection::{WebConnection, WebError, WebResponse};
-use reqwest::{Error, StatusCode};
+use reqwest::StatusCode;
 
 pub enum Method {
     GET, POST, DELETE

@@ -6,7 +6,6 @@ use rocket::Request;
 use rocket::State;
 
 use crate::rest_bodies;
-use crate::errors;
 use crate::errors::server_error::ServerError;
 use crate::server_functions;
 use crate::database_connector::DatabaseConnector;

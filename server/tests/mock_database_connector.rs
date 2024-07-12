@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use server::database_connector::DatabaseConnector;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 use tempfile::NamedTempFile;
 
 pub fn new() -> Result<MockDatabaseConnector, String> {

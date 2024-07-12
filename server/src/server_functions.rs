@@ -1,10 +1,6 @@
-use rocket::http::hyper::server::Server;
 use rusqlite::{ params_from_iter, Error, ErrorCode, Result };
 use rand::Rng;
-use std::fmt::Display;
-use std::fs;
 
-use crate::errors::database_setup_error::DatabaseSetupError;
 use crate::errors::server_error::ServerError;
 use crate::database_connector::DatabaseConnector;
 use crate::{ rest_responses, rest_bodies };
@@ -12,6 +8,7 @@ use crate::{ rest_responses, rest_bodies };
 pub fn setup_database(connector: &dyn DatabaseConnector) -> Result<(), ServerError> {
     let connection = connector.open().sql_err()?;
 
+    // Table setup
     connection.execute("
         CREATE TABLE IF NOT EXISTS menu_items (
             id INTEGER PRIMARY KEY,
@@ -27,6 +24,7 @@ pub fn setup_database(connector: &dyn DatabaseConnector) -> Result<(), ServerErr
         CREATE TABLE IF NOT EXISTS idempotent_requests (
             idempotency_key TEXT PRIMARY KEY);", ()).sql_err()?;
 
+    // Data setup
     let menu_items_exist_query = "SELECT * FROM menu_items;";
     let mut stmt = connection.prepare(menu_items_exist_query).sql_err()?;
     let menu_items_exist = stmt.exists([]).sql_err()?;
@@ -57,8 +55,6 @@ pub fn get_menu_items(connector: &dyn DatabaseConnector) -> Result<rest_response
     for item in query_result {
         items.push(item.sql_err()?);
     }
-    
-    println!("{}", items.iter().map(|i| i.name.to_string()).collect::<String>());
 
     Result::Ok(
         rest_responses::MenuItems {
@@ -71,6 +67,7 @@ pub fn add_orders(connector: &dyn DatabaseConnector, table_number: u32, orders: 
     let mut connection = connector.open().sql_err()?;
     let transaction = connection.transaction().sql_err()?;
 
+    // if an idempotency key was required, check that first. On conflict, an Err will be returned.
     if let Some(key) = orders.idempotency_key {
         transaction.execute(
             "INSERT INTO idempotent_requests (idempotency_key) VALUES (:key)",
@@ -84,6 +81,7 @@ pub fn add_orders(connector: &dyn DatabaseConnector, table_number: u32, orders: 
 
     let mut ids = Vec::new();
 
+    // add orders one at a time
     for order in &orders.orders {
         let cook_time = rand::thread_rng().gen_range(5..15);
         let rows = transaction.execute(
@@ -98,14 +96,19 @@ pub fn add_orders(connector: &dyn DatabaseConnector, table_number: u32, orders: 
                 (":cook_time", &cook_time.to_string()),
                 (":menu_item_id", &order.menu_item_id.to_string())])
             .sql_err()?;
+        
+        // if the requested menu item does not exist, no data will be added; return an error.
         if rows == 0 {
             return Err(ServerError::DataNotFound);
         }
+
+        // keep track of all added ids so they can be queried after the transaction
         ids.push(transaction.last_insert_rowid());
     };
 
     transaction.commit().sql_err()?;
 
+    // query the added items for the response
     let query = format!("SELECT o.id, o.minutes_to_cook, m.id, m.name
         FROM orders AS o
         INNER JOIN menu_items AS m ON m.id = o.menu_item_id
@@ -207,6 +210,8 @@ pub trait DisplayResultMethods<T> {
 
 impl<T> DisplayResultMethods<T> for Result<T, rusqlite::Error>
 {
+    // Convenience function for calling map_err on a Result<_, rusqlite::Error>
+    // that converts the error to a ServerError as defined by this application
     fn sql_err(self) -> Result<T, ServerError>
     {
         self.map_err(|e| ServerError::SqlError(e))
